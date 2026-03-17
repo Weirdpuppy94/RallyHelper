@@ -1,8 +1,3 @@
-Gute Wahl — ich habe das README komplett neu geschrieben (auf Englisch, wie gewünscht) und zusätzlich ein kurzes Code‑Snippet eingefügt, das das Addon per **`/rally`** Slash‑Command aufruft. Du kannst das Snippet direkt in deine `RallyHelper.lua` einfügen, falls du den Befehl noch nicht implementiert hast.
-
----
-
-### README (English, ready to paste into `README.md`)
 
 ```markdown
 # RallyHelper
