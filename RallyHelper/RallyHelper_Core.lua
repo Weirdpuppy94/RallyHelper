@@ -1,6 +1,3 @@
--- RallyHelper_Core.lua (UPDATED: text labels + full timer share + tooltip wording)
--- Restores original behavior and fixes text formatting for shared timers and status output.
-
 local RH_CHANNEL_NAME    = "RallyHelper"
 local RH_VERIFY_WINDOW   = 30
 local RH_VERIFY_REQUIRED = 2
@@ -207,7 +204,6 @@ function RallyHelper_InsertToChat(text)
   end
 end
 
--- Updated ShareTimersToChat: full labels, DMF zone, ZG label, Rend label
 local function ShareTimersToChat()
   local now = time()
   local zgText = DB.lastZG and FormatAgo(DB.lastZG) or "unknown"
@@ -240,9 +236,6 @@ SlashCmdList["RALLYHELPER"] = function(msg)
   end
 end
 
--- =========================================================
--- MINIMAP BUTTON (ALT-DRAG + ALT-CLICK SIZE + TOOLTIP)
--- =========================================================
 local function CreateMinimapButton()
   if RallyHelperMinimapButton then return end
 
@@ -346,7 +339,6 @@ local function CreateMinimapButton()
 
     if button ~= "LeftButton" then return end
 
-    -- ALT behavior: click opens size, drag moves icon
     if IsAltKeyDown() then
       if b.didDrag then
         b.didDrag = false
@@ -358,13 +350,12 @@ local function CreateMinimapButton()
       return
     end
 
-    -- SHIFT behavior: share timers
+
     if IsShiftKeyDown() then
       ShareTimersToChat()
       return
     end
 
-    -- Normal left click: toggle UI
     if type(RallyHelper_ToggleUI) == "function" then
       RallyHelper_ToggleUI()
     else
@@ -376,9 +367,6 @@ local function CreateMinimapButton()
   if DB.minimap.hide then b:Hide() else b:Show() end
 end
 
--- =========================================================
--- EVENTS
--- =========================================================
 local f = CreateFrame("Frame")
 f:RegisterEvent("PLAYER_LOGIN")
 f:RegisterEvent("CHAT_MSG_CHANNEL")
