@@ -1,5 +1,3 @@
-
-```markdown
 # RallyHelper
 
 **RallyHelper** shows timers and last‑seen information for Onyxia, Nefarian, Zul'Gurub (ZG) and the Darkmoon Faire (DMF). The UI is movable, resizable and includes a scale slider so icons and text can be enlarged or reduced. The background fades on hover while text and icons remain visible.
@@ -144,4 +142,3 @@ RallyHelper_UI.lua
 ## License
 
 This project is licensed under the **MIT License**. See the `LICENSE` file for details.
-```
