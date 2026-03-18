@@ -101,6 +101,10 @@ If either addon is enabled, RallyHelper cannot function reliably.
 
 ---
 
+After extracting the ZIP, the folder `RallyHelper` must be placed directly into `Interface/AddOns/`.
+
+---
+
 ## Usage
 
 - **Open/Close UI:** `/rally`  
