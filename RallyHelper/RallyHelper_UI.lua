@@ -33,7 +33,26 @@ end
 local function EnsureDB()
   RallyHelperDB = RallyHelperDB or {}
   RallyHelperDB.ui = RallyHelperDB.ui or {}
-  return RallyHelperDB.ui
+
+  local S = RallyHelperDB.ui
+
+  if S.w == nil then S.w = DEFAULT_W end
+  if S.h == nil then S.h = DEFAULT_H end
+  if S.scale == nil then S.scale = DEFAULT_SCALE end
+
+  return S
+end
+
+local function ApplyPfUISkin(frame)
+  if not frame or not pfUI or not pfUI.api then return end
+
+  if pfUI.api.SkinFrame then
+    pcall(pfUI.api.SkinFrame, frame)
+  end
+
+  if frame.bgFrame and pfUI.api.SkinBackdrop then
+    pcall(pfUI.api.SkinBackdrop, frame.bgFrame)
+  end
 end
 
 local function FadeInBg(bg, timeToFade, startAlpha, endAlpha)
@@ -163,6 +182,8 @@ local function CreateUI()
     ui.bgFrame:ClearAllPoints()
     ui.bgFrame:SetAllPoints(ui)
   end
+
+  ApplyPfUISkin(ui)
 
   ui:SetScale(S.scale or DEFAULT_SCALE)
 
@@ -294,6 +315,8 @@ local function CreateSizeUI()
   })
   sizeUI:SetBackdropColor(0, 0, 0, 0.9)
 
+  ApplyPfUISkin(sizeUI)
+
   if not sizeUI.initialized then
     sizeUI.initialized = true
 
@@ -334,6 +357,7 @@ local function CreateSizeUI()
       sdb.h = val
       ApplyLayout()
     end, 10)
+
 
     sizeUI.scaleLabel = sizeUI:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     sizeUI.scaleLabel:SetPoint("TOP", 0, -118)
