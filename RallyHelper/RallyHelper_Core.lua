@@ -8,6 +8,8 @@ local NEF_CD = 2 * 60 * 60
 local WB_CD  = 3 * 60 * 60
 local WB_WARN_DELAY = 6
 
+local DB_VERSION = 1
+
 local DB
 local verify = {}
 local lastSend = {}
@@ -124,6 +126,10 @@ local function AcceptEvent(ev, ts, zone)
   if ev == "ZG"    then DB.lastZG   = ts end
   if ev == "DMF"   then DB.lastDMFTime = ts; DB.lastDMFZone = zone end
   if ev == "WB"    then DB.lastWB = ts; DB.lastWBZone = zone end
+
+  if DB.toast then
+    DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RallyHelper]|r " .. ev .. " confirmed")
+  end
 end
 
 local function HandleChannel(msg, channel)
@@ -136,12 +142,22 @@ local function HandleChannel(msg, channel)
 end
 
 local function HandleYell(npc, msg)
-  if npc == "Major Mattingly" and string.find(msg, "Dragonslayer") then SendEvent("ONY_A") end
-  if npc == "High Overlord Saurfang" and string.find(msg, "Dragonslayer") then SendEvent("ONY_H") end
-  if npc == "Field Marshal Afrasiabi" and string.find(msg, "Dragonslayer") then SendEvent("NEF_A") end
-  if npc == "Overlord Runthak" and string.find(msg, "Dragonslayer") then SendEvent("NEF_H") end
-  if npc == "Molthor" and string.find(msg, "Zandalar") then SendEvent("ZG") end
-  if npc == "Thrall" and string.find(msg, "Warchief") then SendEvent("WB", "Orgrimmar") end
+  if not npc or not msg then return end
+
+  if npc == "Major Mattingly" and string.find(msg, "Dragonslayer") then SendEvent("ONY_A") return end
+  if npc == "Field Marshal Afrasiabi" and string.find(msg, "Dragonslayer") then SendEvent("NEF_A") return end
+  if npc == "High Overlord Saurfang" and string.find(msg, "Dragonslayer") then SendEvent("ONY_H") return end
+  if npc == "Overlord Runthak" and string.find(msg, "Dragonslayer") then SendEvent("NEF_H") return end
+
+  if npc == "Molthor" and (string.find(msg, "slayer of Hakkar") or string.find(msg, "Hakkar")) then
+    SendEvent("ZG")
+    return
+  end
+
+  if npc == "Thrall" and (string.find(msg, "Warchief") or string.find(msg, "Rend")) then
+    SendEvent("WB", "Orgrimmar")
+    return
+  end
 end
 
 local function TryDMF()
@@ -176,12 +192,23 @@ function ShareTimersToChat()
   )
 end
 
-
 SLASH_RALLYHELPER1 = "/rally"
 SlashCmdList["RALLYHELPER"] = function(msg)
   msg = string.lower(msg or "")
+
   if msg == "status" then
     PrintStatus()
+  elseif msg == "share" then
+    ShareTimersToChat()
+  elseif msg == "reset" then
+    DB.ui = nil
+    ReloadUI()
+  elseif msg == "lock" then
+    DB.locked = not DB.locked
+    DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] UI lock: " .. tostring(DB.locked))
+  elseif msg == "debug" then
+    DEFAULT_CHAT_FRAME:AddMessage("ZG: " .. (DB.lastZG and FormatAgo(DB.lastZG) or "unknown"))
+    DEFAULT_CHAT_FRAME:AddMessage("DMF: " .. (DB.lastDMFTime and FormatAgo(DB.lastDMFTime) or "unknown"))
   else
     if type(RallyHelper_ToggleUI) == "function" then
       RallyHelper_ToggleUI()
@@ -299,6 +326,16 @@ f:SetScript("OnEvent", function()
   if event == "PLAYER_LOGIN" then
     DB = RallyHelperDB or {}
     RallyHelperDB = DB
+
+    DB.version = DB.version or 0
+    if DB.version < DB_VERSION then
+      DB.ui = DB.ui or {}
+      DB.minimap = DB.minimap or {}
+      DB.locked = false
+      DB.toast = true
+      DB.version = DB_VERSION
+    end
+
     JoinChannel()
     CreateMinimapButton()
   elseif event == "CHAT_MSG_CHANNEL" then
