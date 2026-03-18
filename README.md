@@ -101,20 +101,6 @@ If either addon is enabled, RallyHelper cannot function reliably.
 
 ---
 
-## Installation (GitHub / Turtle WoW)
-
-1. Create a GitHub repository named `RallyHelper`.  
-2. Put the addon folder `RallyHelper/` in the repo root containing:
-   - `RallyHelper.toc`
-   - `RallyHelper.lua`
-   - `RallyHelper_UI.lua`
-   - `README.md`
-   - `LICENSE`
-3. Create a **Release** and attach a ZIP that contains the `RallyHelper/` folder at the root.  
-4. Install the ZIP via GitHub or extract it into `Interface/AddOns/`.
-
----
-
 ## Usage
 
 - **Open/Close UI:** `/rally`  
