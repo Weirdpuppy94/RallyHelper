@@ -157,7 +157,6 @@ local function CreateUI()
     })
     ui.bgFrame:SetBackdropColor(0, 0, 0, 0.75)
     ui.bgFrame:SetBackdropBorderColor(0, 0, 0, 0)
-
     ui.bgFrame:EnableMouse(false)
     ui.bgFrame:SetAlpha(0.18)
   else
@@ -165,20 +164,16 @@ local function CreateUI()
     ui.bgFrame:SetAllPoints(ui)
   end
 
-  local scale = S.scale or DEFAULT_SCALE
-  ui:SetScale(scale)
+  ui:SetScale(S.scale or DEFAULT_SCALE)
 
   if not ui.initialized then
     ui.initialized = true
 
-    if not ui.titleFrame or (type(ui.titleFrame) ~= "table") then
-      ui.titleFrame = CreateFrame("Frame", nil, ui)
-      ui.titleFrame:SetPoint("TOPLEFT", ui, "TOPLEFT", 0, 0)
-      ui.titleFrame:SetPoint("TOPRIGHT", ui, "TOPRIGHT", 0, 0)
-      ui.titleFrame:SetHeight(24)
-
-      ui.titleFrame:SetFrameLevel((ui.bgFrame and ui.bgFrame:GetFrameLevel() or 0) + 2)
-    end
+    ui.titleFrame = ui.titleFrame or CreateFrame("Frame", nil, ui)
+    ui.titleFrame:SetPoint("TOPLEFT", ui, "TOPLEFT", 0, 0)
+    ui.titleFrame:SetPoint("TOPRIGHT", ui, "TOPRIGHT", 0, 0)
+    ui.titleFrame:SetHeight(24)
+    ui.titleFrame:SetFrameLevel((ui.bgFrame and ui.bgFrame:GetFrameLevel() or 0) + 2)
 
     ui.title = ui:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     ui.title:SetPoint("TOP", 0, -6)
@@ -220,63 +215,32 @@ local function CreateUI()
     ui:SetMovable(true)
     ui:RegisterForDrag("LeftButton")
 
-    local function makeStartMoving(frame)
-      return function()
-        if not frame then return end
-        if locked then return end
-        if not frame:IsMovable() then return end
-        pcall(function() frame:StartMoving() end)
-      end
-    end
+    ui:SetScript("OnDragStart", function()
+      if locked then return end
+      pcall(function() ui:StartMoving() end)
+    end)
 
-    local function makeStopMoving(frame)
-      return function()
-        if not frame then return end
-        pcall(function() frame:StopMovingOrSizing() end)
-        local left = frame:GetLeft() or 0
-        local bottom = frame:GetBottom() or 0
-        local s = EnsureDB()
-        s.x = left
-        s.y = bottom
-      end
-    end
-
-    ui:SetScript("OnDragStart", makeStartMoving(ui))
-    ui:SetScript("OnDragStop", makeStopMoving(ui))
+    ui:SetScript("OnDragStop", function()
+      pcall(function() ui:StopMovingOrSizing() end)
+      local s = EnsureDB()
+      s.x = ui:GetLeft() or 0
+      s.y = ui:GetBottom() or 0
+    end)
 
     ui.titleFrame:EnableMouse(true)
     ui.titleFrame:RegisterForDrag("LeftButton")
 
     ui.titleFrame:SetScript("OnDragStart", function()
-      local parent = ui.titleFrame and ui.titleFrame:GetParent()
-      if not parent then return end
       if locked then return end
-      if not parent:IsMovable() then return end
-      pcall(function() parent:StartMoving() end)
+      pcall(function() ui:StartMoving() end)
     end)
 
     ui.titleFrame:SetScript("OnDragStop", function()
-      local parent = ui.titleFrame and ui.titleFrame:GetParent()
-      if not parent then return end
-      pcall(function() parent:StopMovingOrSizing() end)
-      local left = parent:GetLeft() or 0
-      local bottom = parent:GetBottom() or 0
+      pcall(function() ui:StopMovingOrSizing() end)
       local s = EnsureDB()
-      s.x = left
-      s.y = bottom
+      s.x = ui:GetLeft() or 0
+      s.y = ui:GetBottom() or 0
     end)
-
-    ui:SetScript("OnMouseDown", function()
-      if locked then return end
-      pcall(function() ui._dragStartX, ui._dragStartY = GetCursorPosition() end)
-    end)
-
-    ui:SetScript("OnMouseUp", function()
-      pcall(function() ui._dragStartX, ui._dragStartY = nil, nil end)
-    end)
-
-    local bg = ui.bgFrame
-    if bg then bg:SetAlpha(0.18) end
 
     ui:SetScript("OnEnter", function()
       local b = ui.bgFrame
@@ -296,13 +260,8 @@ local function CreateUI()
       if b then pcall(FadeOutBg, b, 0.25, b:GetAlpha() or 1.0, 0.18) end
     end)
 
-    if ui.title and type(ui.title.SetScript) == "function" then
-      ui.title:SetScript("OnEnter", nil)
-      ui.title:SetScript("OnLeave", nil)
-    end
-
     ui._lastUpdate = 0
-    ui:SetScript("OnUpdate", function(self)
+    ui:SetScript("OnUpdate", function()
       local now = GetTime()
       if (now - ui._lastUpdate) < 0.25 then return end
       ui._lastUpdate = now
@@ -352,33 +311,29 @@ local function CreateSizeUI()
       s:SetMinMaxValues(min, max)
       s:SetValueStep(step or 1)
 
-      s:SetScript("OnValueChanged", function(_, v)
-        local val = tonumber(v) or s:GetValue() or 0
-        setter(floor(val + 0.5))
+      s:SetScript("OnValueChanged", function()
+        local v = tonumber(arg1) or tonumber(s:GetValue()) or 0
+        setter(v)
       end)
 
       return s
     end
 
     sizeUI.w = MakeSlider("Width", 300, 700, -28, function(v)
-      if ui then ui:SetWidth(v) end
-      local s = EnsureDB()
-      s.w = v
+      local val = floor((tonumber(v) or 0) + 0.5)
+      if ui then ui:SetWidth(val) end
+      local sdb = EnsureDB()
+      sdb.w = val
       ApplyLayout()
     end, 10)
 
     sizeUI.h = MakeSlider("Height", 140, 400, -78, function(v)
-      if ui then ui:SetHeight(v) end
-      local s = EnsureDB()
-      s.h = v
+      local val = floor((tonumber(v) or 0) + 0.5)
+      if ui then ui:SetHeight(val) end
+      local sdb = EnsureDB()
+      sdb.h = val
       ApplyLayout()
     end, 10)
-
-    local function SetScaleValue(v)
-      local sdb = EnsureDB()
-      sdb.scale = v
-      if ui then ui:SetScale(v) end
-    end
 
     sizeUI.scaleLabel = sizeUI:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     sizeUI.scaleLabel:SetPoint("TOP", 0, -118)
@@ -388,10 +343,13 @@ local function CreateSizeUI()
     scaleSlider:SetPoint("TOP", 0, -138)
     scaleSlider:SetMinMaxValues(0.7, 1.3)
     scaleSlider:SetValueStep(0.05)
-    scaleSlider:SetScript("OnValueChanged", function(_, v)
-      local val = tonumber(v) or scaleSlider:GetValue() or DEFAULT_SCALE
-      val = math.floor(val * 100 + 0.5) / 100
-      SetScaleValue(val)
+
+    scaleSlider:SetScript("OnValueChanged", function()
+      local v = tonumber(arg1) or tonumber(scaleSlider:GetValue()) or DEFAULT_SCALE
+      v = floor(v * 100 + 0.5) / 100
+      local sdb = EnsureDB()
+      sdb.scale = v
+      if ui then ui:SetScale(v) end
     end)
 
     sizeUI.scale = scaleSlider
@@ -412,10 +370,10 @@ RallyHelper_ToggleSizeUI = function()
   if sizeUI:IsShown() then
     sizeUI:Hide()
   else
-    local s = EnsureDB()
-    if sizeUI.w then sizeUI.w:SetValue(ui and ui:GetWidth() or (s.w or DEFAULT_W)) end
-    if sizeUI.h then sizeUI.h:SetValue(ui and ui:GetHeight() or (s.h or DEFAULT_H)) end
-    if sizeUI.scale then sizeUI.scale:SetValue(s.scale or DEFAULT_SCALE) end
+    local sdb = EnsureDB()
+    if sizeUI.w then sizeUI.w:SetValue(ui and ui:GetWidth() or (sdb.w or DEFAULT_W)) end
+    if sizeUI.h then sizeUI.h:SetValue(ui and ui:GetHeight() or (sdb.h or DEFAULT_H)) end
+    if sizeUI.scale then sizeUI.scale:SetValue(sdb.scale or DEFAULT_SCALE) end
     sizeUI:Show()
   end
 end
