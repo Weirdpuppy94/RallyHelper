@@ -24,8 +24,7 @@ local DMF_NPCS = {
 
 local function SafeZoneText()
   local z = GetZoneText() or ""
-  z = string.gsub(z, "|", "/")
-  return z
+  return string.gsub(z, "|", "/")
 end
 
 local function SanitizeChat(msg)
@@ -49,28 +48,18 @@ local function FormatAgo(ts)
   if d < 60 then return d .. "s ago" end
   if d < 3600 then return floor(d / 60) .. "m ago" end
   local h = floor(d / 3600)
-  local rem = d - (h * 3600)
-  local m = floor(rem / 60)
+  local m = floor((d - h * 3600) / 60)
   return h .. "h " .. m .. "m ago"
-end
-
-local function PlayAlert(key)
-  if DB and DB.sound and DB.sound.master and DB.sound[key] then
-    PlaySound("RaidWarning")
-  end
 end
 
 local function IsInChannel()
   for i = 1, 10 do
-    local name = GetChannelName(i)
-    if name == RH_CHANNEL_NAME then return true end
+    if GetChannelName(i) == RH_CHANNEL_NAME then return true end
   end
 end
 
 local function JoinChannel()
-  if not IsInChannel() then
-    JoinChannelByName(RH_CHANNEL_NAME)
-  end
+  if not IsInChannel() then JoinChannelByName(RH_CHANNEL_NAME) end
 end
 
 local function GetChannelId()
@@ -90,7 +79,6 @@ local function SendEvent(ev, zone)
   if not CanSend(ev) then return end
   local cid = GetChannelId()
   if not cid then return end
-
   local msg = ev .. "|" .. time() .. "|" .. (UnitName("player") or "?") .. "|" .. (zone or "")
   SendChatMessage(SanitizeChat(msg), "CHANNEL", nil, cid)
 end
@@ -129,33 +117,22 @@ local function VerifyEvent(ev, ts, sender, zone)
 end
 
 local function AcceptEvent(ev, ts, zone)
-  if ev == "ONY_A" then DB.lastOnyA = ts; PlayAlert("ONY") end
-  if ev == "ONY_H" then DB.lastOnyH = ts; PlayAlert("ONY") end
-  if ev == "NEF_A" then DB.lastNefA = ts; PlayAlert("NEF") end
-  if ev == "NEF_H" then DB.lastNefH = ts; PlayAlert("NEF") end
-  if ev == "ZG"    then DB.lastZG   = ts; PlayAlert("ZG")  end
-  if ev == "DMF"   then DB.lastDMFTime = ts; DB.lastDMFZone = zone; PlayAlert("DMF") end
-  if ev == "WB"    then DB.lastWB = ts; DB.lastWBZone = zone; PlayAlert("WB") end
+  if ev == "ONY_A" then DB.lastOnyA = ts end
+  if ev == "ONY_H" then DB.lastOnyH = ts end
+  if ev == "NEF_A" then DB.lastNefA = ts end
+  if ev == "NEF_H" then DB.lastNefH = ts end
+  if ev == "ZG"    then DB.lastZG   = ts end
+  if ev == "DMF"   then DB.lastDMFTime = ts; DB.lastDMFZone = zone end
+  if ev == "WB"    then DB.lastWB = ts; DB.lastWBZone = zone end
 end
 
 local function HandleChannel(msg, channel)
   if channel ~= RH_CHANNEL_NAME then return end
-
   local ev, ts, sender, zone = string.match(msg, "^([^|]+)|([^|]+)|([^|]+)|?(.*)$")
   ts = tonumber(ts)
   if not ev or not ts or not sender then return end
-
   local ok, bestTs, bestZone = VerifyEvent(ev, ts, sender, zone)
   if ok then AcceptEvent(ev, bestTs, bestZone) end
-end
-
-local function ScheduleWBWarning()
-  if not DB.sound.master or not DB.sound.WB then return end
-  if not C_Timer or not C_Timer.After then return end
-  C_Timer.After(WB_WARN_DELAY, function()
-    PlaySound("RaidWarning")
-    DEFAULT_CHAT_FRAME:AddMessage("Warchief's Blessing in ~6 seconds!")
-  end)
 end
 
 local function HandleYell(npc, msg)
@@ -164,15 +141,7 @@ local function HandleYell(npc, msg)
   if npc == "Field Marshal Afrasiabi" and string.find(msg, "Dragonslayer") then SendEvent("NEF_A") end
   if npc == "Overlord Runthak" and string.find(msg, "Dragonslayer") then SendEvent("NEF_H") end
   if npc == "Molthor" and string.find(msg, "Zandalar") then SendEvent("ZG") end
-
-  if npc == "Thrall" then
-    if string.find(msg, "Honor your heroes") or
-       string.find(msg, "Be bathed in my power") or
-       string.find(msg, "Warchief") then
-      SendEvent("WB", "Orgrimmar")
-      ScheduleWBWarning()
-    end
-  end
+  if npc == "Thrall" and string.find(msg, "Warchief") then SendEvent("WB", "Orgrimmar") end
 end
 
 local function TryDMF()
@@ -181,58 +150,42 @@ local function TryDMF()
   end
 end
 
--- Updated PrintStatus: uses the requested labels and includes zones for DMF
-local function PrintStatus()
+function PrintStatus()
   local now = time()
-  DEFAULT_CHAT_FRAME:AddMessage("Onyxia Stormwind: " .. (DB.lastOnyA and FormatTime(DB.lastOnyA + ONY_CD - now) or "ready"))
-  DEFAULT_CHAT_FRAME:AddMessage("Onyxia Orgrimmar: " .. (DB.lastOnyH and FormatTime(DB.lastOnyH + ONY_CD - now) or "ready"))
-  DEFAULT_CHAT_FRAME:AddMessage("Nefarian Stormwind: " .. (DB.lastNefA and FormatTime(DB.lastNefA + NEF_CD - now) or "ready"))
-  DEFAULT_CHAT_FRAME:AddMessage("Nefarian Orgrimmar: " .. (DB.lastNefH and FormatTime(DB.lastNefH + NEF_CD - now) or "ready"))
+  DEFAULT_CHAT_FRAME:AddMessage("Ony SW: " .. (DB.lastOnyA and FormatTime(DB.lastOnyA + ONY_CD - now) or "ready"))
+  DEFAULT_CHAT_FRAME:AddMessage("Ony OG: " .. (DB.lastOnyH and FormatTime(DB.lastOnyH + ONY_CD - now) or "ready"))
+  DEFAULT_CHAT_FRAME:AddMessage("Nef SW: " .. (DB.lastNefA and FormatTime(DB.lastNefA + NEF_CD - now) or "ready"))
+  DEFAULT_CHAT_FRAME:AddMessage("Nef OG: " .. (DB.lastNefH and FormatTime(DB.lastNefH + NEF_CD - now) or "ready"))
   DEFAULT_CHAT_FRAME:AddMessage("ZG last drop: " .. (DB.lastZG and FormatAgo(DB.lastZG) or "unknown"))
-  local dmfZone = (DB.lastDMFZone and DB.lastDMFZone ~= "") and DB.lastDMFZone or "unknown"
-  DEFAULT_CHAT_FRAME:AddMessage("DMF last seen: " .. (DB.lastDMFTime and (FormatAgo(DB.lastDMFTime) .. " in " .. dmfZone) or ("unknown in " .. dmfZone)))
+  DEFAULT_CHAT_FRAME:AddMessage("DMF last seen: " .. (DB.lastDMFTime and FormatAgo(DB.lastDMFTime) or "unknown"))
   DEFAULT_CHAT_FRAME:AddMessage("Rend: " .. (DB.lastWB and FormatTime(DB.lastWB + WB_CD - now) or "ready"))
 end
 
 function RallyHelper_InsertToChat(text)
-  if not text or text == "" then return end
   if not ChatFrameEditBox:IsShown() then ChatFrame_OpenChat("") end
-  if ChatEdit_InsertLink then
-    ChatEdit_InsertLink(text)
-  else
-    ChatFrameEditBox:Insert(text)
-  end
+  ChatFrameEditBox:Insert(text)
 end
 
-local function ShareTimersToChat()
+function ShareTimersToChat()
   local now = time()
-  local zgText = DB.lastZG and FormatAgo(DB.lastZG) or "unknown"
-  local dmfZone = (DB.lastDMFZone and DB.lastDMFZone ~= "") and DB.lastDMFZone or "unknown"
-  local dmfText = DB.lastDMFTime and (FormatAgo(DB.lastDMFTime) .. " in " .. dmfZone) or ("unknown in " .. dmfZone)
-
   RallyHelper_InsertToChat(
     "Ony SW: " .. (DB.lastOnyA and FormatTime(DB.lastOnyA + ONY_CD - now) or "ready") .. " | " ..
     "Ony OG: " .. (DB.lastOnyH and FormatTime(DB.lastOnyH + ONY_CD - now) or "ready") .. " | " ..
     "Nef SW: " .. (DB.lastNefA and FormatTime(DB.lastNefA + NEF_CD - now) or "ready") .. " | " ..
-    "Nef OG: " .. (DB.lastNefH and FormatTime(DB.lastNefH + NEF_CD - now) or "ready") .. " | " ..
-    "ZG last drop: " .. zgText .. " | " ..
-    "DMF last seen: " .. dmfText .. " | " ..
-    "Rend: " .. (DB.lastWB and FormatTime(DB.lastWB + WB_CD - now) or "ready")
+    "Nef OG: " .. (DB.lastNefH and FormatTime(DB.lastNefH + NEF_CD - now) or "ready")
   )
 end
+
 
 SLASH_RALLYHELPER1 = "/rally"
 SlashCmdList["RALLYHELPER"] = function(msg)
   msg = string.lower(msg or "")
   if msg == "status" then
     PrintStatus()
-    return
-  end
-
-  if type(RallyHelper_ToggleUI) == "function" then
-    RallyHelper_ToggleUI()
   else
-    PrintStatus()
+    if type(RallyHelper_ToggleUI) == "function" then
+      RallyHelper_ToggleUI()
+    end
   end
 end
 
@@ -252,7 +205,6 @@ local function CreateMinimapButton()
   b.icon = b:CreateTexture(nil, "ARTWORK")
   b.icon:SetTexture("Interface\\Icons\\INV_Misc_Head_Dragon_Red")
   b.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-  b.icon:ClearAllPoints()
   b.icon:SetPoint("CENTER", 0, 0)
   b.icon:SetWidth(18)
   b.icon:SetHeight(18)
@@ -295,27 +247,21 @@ local function CreateMinimapButton()
     GameTooltip:Show()
   end)
 
-  b:SetScript("OnLeave", function()
-    GameTooltip:Hide()
-  end)
+  b:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
   b:SetScript("OnMouseDown", function()
     if arg1 ~= "LeftButton" then return end
     b.isDown = true
-    b.altDown = IsAltKeyDown() and true or false
+    b.altDown = IsAltKeyDown()
     b.didDrag = false
     b.downX, b.downY = CursorUI()
   end)
 
   b:SetScript("OnUpdate", function()
-    if not b.isDown then return end
-    if not b.altDown then return end
-
+    if not b.isDown or not b.altDown then return end
     local cx, cy = CursorUI()
-    local dx = cx - b.downX
-    local dy = cy - b.downY
-    if (dx*dx + dy*dy) < 16 then return end -- 4px threshold
-
+    local dx, dy = cx - b.downX, cy - b.downY
+    if (dx*dx + dy*dy) < 16 then return end
     b.didDrag = true
     local mx, my = Minimap:GetCenter()
     local ang = math.deg(math.atan2(cy - my, cx - mx))
@@ -324,43 +270,17 @@ local function CreateMinimapButton()
     UpdatePos()
   end)
 
-  b:SetScript("OnMouseUp", function()
-    if arg1 ~= "LeftButton" then return end
-    b.isDown = false
-  end)
+  b:SetScript("OnMouseUp", function() b.isDown = false end)
 
   b:SetScript("OnClick", function()
-    local button = arg1
-
-    if button == "RightButton" then
-      PrintStatus()
-      return
-    end
-
-    if button ~= "LeftButton" then return end
-
+    if arg1 == "RightButton" then PrintStatus(); return end
     if IsAltKeyDown() then
-      if b.didDrag then
-        b.didDrag = false
-        return
-      end
-      if type(RallyHelper_ToggleSizeUI) == "function" then
-        RallyHelper_ToggleSizeUI()
-      end
+      if b.didDrag then b.didDrag = false; return end
+      if type(RallyHelper_ToggleSizeUI) == "function" then RallyHelper_ToggleSizeUI() end
       return
     end
-
-
-    if IsShiftKeyDown() then
-      ShareTimersToChat()
-      return
-    end
-
-    if type(RallyHelper_ToggleUI) == "function" then
-      RallyHelper_ToggleUI()
-    else
-      PrintStatus()
-    end
+    if IsShiftKeyDown() then ShareTimersToChat(); return end
+    if type(RallyHelper_ToggleUI) == "function" then RallyHelper_ToggleUI() end
   end)
 
   UpdatePos()
@@ -379,12 +299,8 @@ f:SetScript("OnEvent", function()
   if event == "PLAYER_LOGIN" then
     DB = RallyHelperDB or {}
     RallyHelperDB = DB
-    DB.sound = DB.sound or { master = true, ONY = true, NEF = true, ZG = true, DMF = true, WB = true }
-
     JoinChannel()
     CreateMinimapButton()
-
-    DEFAULT_CHAT_FRAME:AddMessage("RallyHelper Core loaded. (/rally to toggle UI, /rally status for chat)")
   elseif event == "CHAT_MSG_CHANNEL" then
     HandleChannel(arg1, arg9)
   elseif event == "CHAT_MSG_MONSTER_YELL" then
