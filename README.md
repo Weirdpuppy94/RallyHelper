@@ -153,3 +153,18 @@ If either addon is enabled, RallyHelper cannot function reliably.
 ## License
 
 This project is licensed under the **MIT License**.
+
+---
+
+## Support the Project
+
+RallyHelper is a free and open‑source addon developed in my spare time.
+
+If you find it useful and would like to support its continued development, you can buy me a coffee:
+
+☕ https://ko-fi.com/YOUR_KOFI_NAME
+
+Any support is greatly appreciated.
+I’m currently going through a financially challenging period, and contributions help me continue maintaining and improving this project.
+
+Support is completely optional and has no impact on features or updates.
