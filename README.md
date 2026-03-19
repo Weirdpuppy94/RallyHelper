@@ -99,12 +99,13 @@ Reset UI position and settings.
 
 ## 🆕 Changelog
 
-### **v1.0.1 — Stability & Early Adoption Update**
+### **v1.0.2 — Stability & Early Adoption Update**
 
 **Fixes**
 - Resolved a Lua error caused by malformed addon messages in the RallyHelper channel  
 - Hardened message parsing to prevent crashes from invalid or unexpected data  
 - Improved Horde/Alliance yell handling for Ony, Nef, ZG, WB  
+- Fixed Yell detection
 
 **New**
 - Added *Unconfirmed Buffs*: preliminary timers shown when receiving unverified data  
