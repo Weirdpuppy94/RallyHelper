@@ -97,24 +97,48 @@ Reset UI position and settings.
 
 ---
 
-## 🆕 Changelog
+---
 
-### **v1.0.6 — Stability & Early Adoption Update**
+# **RallyHelper 1.1.0 – Changelog**
 
-**Fixes**
-- Resolved a Lua error caused by malformed addon messages in the RallyHelper channel  
-- Hardened message parsing to prevent crashes from invalid or unexpected data  
-- Improved Horde/Alliance yell handling for Ony, Nef, ZG, WB  
-- Fixed Yell detection
+### **✨ New Features**
+- **Fully redesigned UI**
+  - Cleaner layout with improved readability  
+  - Color‑coded timers for faster recognition  
+  - Updated icons for Onyxia, Nefarian, and Warchief’s Blessing  
+- **New Size Configuration Window**
+  - Adjust width, height, and scale  
+  - Live preview while dragging sliders  
+  - Perfect compatibility with pfUI  
+- **Improved Minimap Button**
+  - **Alt + Drag** to reposition  
+  - **Shift + Left‑Click** to share timers in chat  
+  - **Right‑Click** for quick status output  
+  - **Alt + Left‑Click** opens the size configuration window  
 
-**New**
-- Added *Unconfirmed Buffs*: preliminary timers shown when receiving unverified data  
-- Added `/rally users` to display the number of active RallyHelper users (anonymous)  
+### **🔧 Improvements**
+- Complete internal code restructuring (Core + UI)  
+- More reliable world buff detection and verification  
+- Improved Darkmoon Faire detection  
+- Optimized OnUpdate loop (reduced CPU usage)  
+- Better pfUI skin integration  
+- Cleaner SavedVariables structure  
+- More robust channel handling and throttling  
 
-**Improvements**
-- More reliable event handling and zone normalization  
-- Cleaner UI updates and better feedback during low‑population usage  
-- Increased stability in busy cities and during world buff spam  
+### **🐞 Bug Fixes**
+- Fixed Lua syntax issues caused by duplicated `end` blocks  
+- Fixed minimap button position not saving correctly  
+- Fixed UI flickering on mouseover  
+- Fixed incorrect or missing DMF zone display  
+- Fixed occasional “unknown” timer values  
+- Fixed issues on first load after installation  
+
+### **📦 Other**
+- Fully Vanilla‑Lua compatible  
+- Verified working on Turtle WoW 1.17+  
+- Updated README  
+- Codebase prepared for future modules and expansions  
+
 
 ---
 
