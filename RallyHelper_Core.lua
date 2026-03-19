@@ -176,7 +176,6 @@ local function HandleChannel(msg, channel)
   AddUnconfirmedEvent(ev, ts, sender, zone)
 end
 
-
 local function CountUsers()
   local now = time()
   local count = 0
@@ -190,14 +189,11 @@ local function CountUsers()
   return count
 end
 
-
-
 local function HandleYell(npc, msg)
   if not npc or not msg then return end
 
   local lowerMsg = string.lower(msg)
 
-  -- Alliance Ony
   if npc == "Major Mattingly" and 
      (lowerMsg:find("onyxia") or lowerMsg:find("slain") or lowerMsg:find("head")) then
     SendEvent("ONY_A")
@@ -209,6 +205,7 @@ local function HandleYell(npc, msg)
     SendEvent("NEF_A")
     return
   end
+
   if npc == "High Overlord Saurfang" and 
      (lowerMsg:find("onyxia") or lowerMsg:find("slain")) then
     SendEvent("ONY_H")
@@ -224,7 +221,6 @@ local function HandleYell(npc, msg)
       SendEvent("NEF_H")
       return
     end
-
     return
   end
 
@@ -242,6 +238,11 @@ local function HandleYell(npc, msg)
   end
 end
 
+local function TryDMF()
+  if UnitExists("target") and DMF_NPCS[UnitName("target")] then
+    SendEvent("DMF", SafeZoneText())
+  end
+end
 
 function PrintStatus()
   local now = time()
@@ -284,7 +285,7 @@ SlashCmdList["RALLYHELPER"] = function(msg)
     DB.locked = not DB.locked
     DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] UI lock: " .. tostring(DB.locked))
   elseif msg == "users" then
-  DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Users online: " .. CountUsers())
+    DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Users online: " .. CountUsers())
   elseif msg == "debug" then
     DEFAULT_CHAT_FRAME:AddMessage("ZG: " .. (DB.lastZG and FormatAgo(DB.lastZG) or "unknown"))
     DEFAULT_CHAT_FRAME:AddMessage("DMF: " .. (DB.lastDMFTime and FormatAgo(DB.lastDMFTime) or "unknown"))
@@ -417,10 +418,13 @@ f:SetScript("OnEvent", function()
 
     JoinChannel()
     CreateMinimapButton()
+
   elseif event == "CHAT_MSG_CHANNEL" then
     HandleChannel(arg1, arg9)
+
   elseif event == "CHAT_MSG_MONSTER_YELL" then
     HandleYell(arg2, arg1)
+
   elseif event == "GOSSIP_SHOW" or event == "QUEST_GREETING" or event == "MERCHANT_SHOW" then
     TryDMF()
   end
