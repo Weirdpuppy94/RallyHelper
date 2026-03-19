@@ -212,10 +212,17 @@ local function HandleYell(npc, msg)
     return
   end
 
-  if npc == "Overlord Runthak" and (lowerMsg:find("blackrock") or lowerMsg:find("nefarian") or lowerMsg:find("slain")) then
+  if npc == "Overlord Runthak" then
+  if lowerMsg:find("onyxia") or lowerMsg:find("brood mother") then
+    SendEvent("ONY_H")
+    return
+  end
+  if lowerMsg:find("blackrock") or lowerMsg:find("nefarian") or lowerMsg:find("slain") then
     SendEvent("NEF_H")
     return
   end
+end
+
 
   if npc == "Molthor" and (lowerMsg:find("hakkar") or lowerMsg:find("slayer of hakkar")) then
     AcceptEvent("ZG", time())
