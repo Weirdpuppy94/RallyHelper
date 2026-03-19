@@ -197,52 +197,51 @@ local function HandleYell(npc, msg)
 
   local lowerMsg = string.lower(msg)
 
-  if npc == "Major Mattingly" and (lowerMsg:find("onyxia") or lowerMsg:find("slain") or lowerMsg:find("head")) then
+  -- Alliance Ony
+  if npc == "Major Mattingly" and 
+     (lowerMsg:find("onyxia") or lowerMsg:find("slain") or lowerMsg:find("head")) then
     SendEvent("ONY_A")
     return
   end
 
-  if npc == "Field Marshal Afrasiabi" and (lowerMsg:find("blackrock") or lowerMsg:find("nefarian") or lowerMsg:find("slain")) then
+  if npc == "Field Marshal Afrasiabi" and 
+     (lowerMsg:find("blackrock") or lowerMsg:find("nefarian") or lowerMsg:find("slain")) then
     SendEvent("NEF_A")
     return
   end
-
-  if npc == "High Overlord Saurfang" and (lowerMsg:find("onyxia") or lowerMsg:find("slain")) then
+  if npc == "High Overlord Saurfang" and 
+     (lowerMsg:find("onyxia") or lowerMsg:find("slain")) then
     SendEvent("ONY_H")
     return
   end
 
   if npc == "Overlord Runthak" then
-  if lowerMsg:find("onyxia") or lowerMsg:find("brood mother") then
-    SendEvent("ONY_H")
+    if lowerMsg:find("onyxia") or lowerMsg:find("brood mother") then
+      SendEvent("ONY_H")
+      return
+    end
+    if lowerMsg:find("blackrock") or lowerMsg:find("nefarian") then
+      SendEvent("NEF_H")
+      return
+    end
+
     return
   end
-  if lowerMsg:find("blackrock") or lowerMsg:find("nefarian") or lowerMsg:find("slain") then
-    SendEvent("NEF_H")
-    return
-  end
-end
 
-
-  if npc == "Molthor" and (lowerMsg:find("hakkar") or lowerMsg:find("slayer of hakkar")) then
+  if npc == "Molthor" and 
+     (lowerMsg:find("hakkar") or lowerMsg:find("slayer of hakkar")) then
     AcceptEvent("ZG", time())
     SendEvent("ZG")
     return
   end
 
-  if npc == "Thrall" and (lowerMsg:find("warchief") or lowerMsg:find("rend")) then
+  if npc == "Thrall" and 
+     (lowerMsg:find("warchief") or lowerMsg:find("rend")) then
     SendEvent("WB", "Orgrimmar")
     return
   end
 end
 
-
-
-local function TryDMF()
-  if UnitExists("target") and DMF_NPCS[UnitName("target")] then
-    SendEvent("DMF", SafeZoneText())
-  end
-end
 
 function PrintStatus()
   local now = time()
