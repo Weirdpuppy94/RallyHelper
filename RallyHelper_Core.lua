@@ -195,39 +195,40 @@ end
 local function HandleYell(npc, msg)
   if not npc or not msg then return end
 
-  msg = string.lower(msg)
+  local lowerMsg = string.lower(msg)
 
-  if npc == "Major Mattingly" and (msg:find("onyxia") or msg:find("slain") or msg:find("head")) then
+  if npc == "Major Mattingly" and (lowerMsg:find("onyxia") or lowerMsg:find("slain") or lowerMsg:find("head")) then
     SendEvent("ONY_A")
     return
   end
 
-  if npc == "Field Marshal Afrasiabi" and (msg:find("blackrock") or msg:find("nefarian") or msg:find("slain")) then
+  if npc == "Field Marshal Afrasiabi" and (lowerMsg:find("blackrock") or lowerMsg:find("nefarian") or lowerMsg:find("slain")) then
     SendEvent("NEF_A")
     return
   end
 
-  if npc == "High Overlord Saurfang" and (msg:find("onyxia") or msg:find("slain")) then
+  if npc == "High Overlord Saurfang" and (lowerMsg:find("onyxia") or lowerMsg:find("slain")) then
     SendEvent("ONY_H")
     return
   end
 
-  if npc == "Overlord Runthak" and (msg:find("blackrock") or msg:find("nefarian") or msg:find("slain")) then
+  if npc == "Overlord Runthak" and (lowerMsg:find("blackrock") or lowerMsg:find("nefarian") or lowerMsg:find("slain")) then
     SendEvent("NEF_H")
     return
   end
 
-  if npc == "Molthor" and (msg:find("hakkar") or msg:find("slayer of hakkar")) then
+  if npc == "Molthor" and (lowerMsg:find("hakkar") or lowerMsg:find("slayer of hakkar")) then
     AcceptEvent("ZG", time())
     SendEvent("ZG")
     return
   end
 
-  if npc == "Thrall" and (msg:find("warchief") or msg:find("rend")) then
+  if npc == "Thrall" and (lowerMsg:find("warchief") or lowerMsg:find("rend")) then
     SendEvent("WB", "Orgrimmar")
     return
   end
 end
+
 
 
 local function TryDMF()
