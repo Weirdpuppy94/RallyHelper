@@ -405,7 +405,14 @@ local function CreateMinimapButton()
     end
   end)
 
+  UpdatePos()
+  if DB.minimap.hide then
+    b:Hide()
+  else
+    b:Show()
+  end
 end
+
 local f = CreateFrame("Frame")
 f:RegisterEvent("PLAYER_LOGIN")
 f:RegisterEvent("CHAT_MSG_CHANNEL")
@@ -441,3 +448,4 @@ f:SetScript("OnEvent", function()
     TryDMF()
   end
 end)
+
