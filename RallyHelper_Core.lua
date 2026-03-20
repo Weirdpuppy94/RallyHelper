@@ -1,6 +1,7 @@
 local RH_CHANNEL_NAME    = "RallyHelper"
 local RH_VERIFY_WINDOW   = 30
 local RH_VERIFY_REQUIRED = 2
+local RH_VERIFY_REQUIRED_REQUEST = 5
 local RH_SEND_THROTTLE   = 20
 
 local ONY_CD = 2 * 60 * 60
@@ -14,6 +15,11 @@ local DB
 local verify = {}
 local RH_Users = {}
 local lastSend = {}
+
+local strmatch = string.match or function() return nil end
+local strfind  = string.find  or function() return nil end
+local strlower = string.lower or function(s) return s end
+local strsub   = string.sub   or function(s, i, j) return s end
 
 local floor = math.floor
 
@@ -95,7 +101,9 @@ local function Prune(list)
   end
 end
 
-local function VerifyEvent(ev, ts, sender, zone)
+local function VerifyEvent(ev, ts, sender, zone, required)
+  required = required or RH_VERIFY_REQUIRED
+
   verify[ev] = verify[ev] or {}
   local list = verify[ev]
   Prune(list)
@@ -106,7 +114,7 @@ local function VerifyEvent(ev, ts, sender, zone)
 
   table.insert(list, { ts = ts, sender = sender, zone = zone or "" })
 
-  if table.getn(list) >= RH_VERIFY_REQUIRED then
+  if table.getn(list) >= required then
     local bestTs, bestZone = 0, ""
     for _, v in ipairs(list) do
       if v.ts > bestTs then bestTs = v.ts end
@@ -147,12 +155,36 @@ local function AddUnconfirmedEvent(ev, ts, sender, zone)
   end
 end
 
+local function RespondToRequest()
+  if DB.lastOnyA then
+    SendEvent("TIMER_ONY_A")
+  end
+  if DB.lastOnyH then
+    SendEvent("TIMER_ONY_H")
+  end
+  if DB.lastNefA then
+    SendEvent("TIMER_NEF_A")
+  end
+  if DB.lastNefH then
+    SendEvent("TIMER_NEF_H")
+  end
+  if DB.lastZG then
+    SendEvent("TIMER_ZG")
+  end
+  if DB.lastDMFTime then
+    SendEvent("TIMER_DMF", DB.lastDMFZone or "")
+  end
+  if DB.lastWB then
+    SendEvent("TIMER_WB", DB.lastWBZone or "")
+  end
+end
+
 local function HandleChannel(msg, channel)
   if channel ~= RH_CHANNEL_NAME then return end
   if type(msg) ~= "string" then return end
   if not msg or msg == "" then return end
 
-  local ev, ts, sender, zone = string.match(msg, "^([^|]+)|([^|]+)|([^|]+)|?(.*)$")
+  local ev, ts, sender, zone = strmatch(msg, "^([^|]+)|([^|]+)|([^|]+)|?(.*)$")
   if not ev or not ts or not sender then return end
 
   ts = tonumber(ts)
@@ -161,12 +193,26 @@ local function HandleChannel(msg, channel)
 
   RH_Users[sender] = time()
 
+  -- Request: jemand fragt nach Timern
+  if ev == "REQ" then
+    RespondToRequest()
+    return
+  end
+
+  local required = RH_VERIFY_REQUIRED
+
+  -- TIMER_* sind Sync-Antworten und brauchen 5 Bestätigungen
+  if strsub(ev, 1, 6) == "TIMER_" then
+    ev = strsub(ev, 8) -- "TIMER_ONY_H" -> "ONY_H"
+    required = RH_VERIFY_REQUIRED_REQUEST
+  end
+
   if ev == "ZG" then
     AcceptEvent(ev, ts, zone)
     return
   end
 
-  local ok, bestTs, bestZone = VerifyEvent(ev, ts, sender, zone)
+  local ok, bestTs, bestZone = VerifyEvent(ev, ts, sender, zone, required)
   if ok then
     AcceptEvent(ev, bestTs, bestZone)
     RH_Unconfirmed[ev] = nil
@@ -188,13 +234,14 @@ local function CountUsers()
   end
   return count
 end
+
 local function HandleYell(npc, msg)
   if type(npc) ~= "string" or type(msg) ~= "string" then return end
 
-  local lowerMsg = string.lower(msg)
+  local lowerMsg = strlower(msg)
 
   local function has(s)
-    return string.find(lowerMsg, s, 1, true) ~= nil
+    return strfind(lowerMsg, s, 1, true) ~= nil
   end
 
   if npc == "Major Mattingly" and (has("onyxia") or has("slain") or has("head")) then
@@ -242,6 +289,10 @@ local function TryDMF()
   end
 end
 
+local function RequestTimers()
+  SendEvent("REQ")
+end
+
 function PrintStatus()
   local now = time()
   DEFAULT_CHAT_FRAME:AddMessage("Ony SW: " .. (DB.lastOnyA and FormatTime(DB.lastOnyA + ONY_CD - now) or "ready"))
@@ -270,7 +321,7 @@ end
 
 SLASH_RALLYHELPER1 = "/rally"
 SlashCmdList["RALLYHELPER"] = function(msg)
-  msg = string.lower(msg or "")
+  msg = strlower(msg or "")
 
   if msg == "status" then
     PrintStatus()
@@ -287,12 +338,16 @@ SlashCmdList["RALLYHELPER"] = function(msg)
   elseif msg == "debug" then
     DEFAULT_CHAT_FRAME:AddMessage("ZG: " .. (DB.lastZG and FormatAgo(DB.lastZG) or "unknown"))
     DEFAULT_CHAT_FRAME:AddMessage("DMF: " .. (DB.lastDMFTime and FormatAgo(DB.lastDMFTime) or "unknown"))
+  elseif msg == "request" then
+    RequestTimers()
+    DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Requested timers from channel")
   else
     if type(RallyHelper_ToggleUI) == "function" then
       RallyHelper_ToggleUI()
     end
   end
 end
+
 local function CreateMinimapButton()
   if RallyHelperMinimapButton then return end
 
@@ -436,6 +491,7 @@ f:SetScript("OnEvent", function()
 
     JoinChannel()
     CreateMinimapButton()
+    RequestTimers()
 
   elseif event == "CHAT_MSG_CHANNEL" then
     HandleChannel(arg1, arg9)
@@ -447,4 +503,3 @@ f:SetScript("OnEvent", function()
     TryDMF()
   end
 end)
-
