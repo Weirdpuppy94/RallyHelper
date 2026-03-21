@@ -180,7 +180,7 @@ local function RespondToRequest()
 end
 
 local function HandleChannel(msg, channel)
-  if channel ~= RH_CHANNEL_NAME then return end
+  if channel ~= RH_CHANNEL_NAME and channel ~= "2. LFT" then return end
   if type(msg) ~= "string" then return end
   if not msg or msg == "" then return end
 
