@@ -63,17 +63,24 @@ end
 
 local function IsInChannel()
   for i = 1, 10 do
-    if GetChannelName(i) == RH_CHANNEL_NAME then return true end
+    local id, name = GetChannelName(i)
+    if name == RH_CHANNEL_NAME then
+      return true
+    end
   end
 end
 
 local function JoinChannel()
-  if not IsInChannel() then JoinChannelByName(RH_CHANNEL_NAME) end
+  if not IsInChannel() then
+    JoinChannelByName(RH_CHANNEL_NAME)
+  end
 end
 
 local function GetChannelId()
   local id = GetChannelName(RH_CHANNEL_NAME)
-  if type(id) == "number" and id > 0 then return id end
+  if type(id) == "number" and id > 0 then
+    return id
+  end
 end
 
 local function CanSend(ev)
@@ -179,24 +186,42 @@ local function RespondToRequest()
   end
 end
 
-local function HandleChannel(msg, channel)
-  if channel ~= RH_CHANNEL_NAME and channel ~= "2. LFT" then return end
-  if type(msg) ~= "string" then return end
-  if not msg or msg == "" then return end
+local function SplitMessage(msg)
+  local a, b, c, d = "", "", "", ""
+  local p1 = string.find(msg, "|")
+  if not p1 then return msg end
 
-  local parts = {}
-for v in string.gmatch(msg, "([^|]*)|?") do
-    table.insert(parts, v)
+  a = string.sub(msg, 1, p1 - 1)
+  local rest = string.sub(msg, p1 + 1)
+
+  local p2 = string.find(rest, "|")
+  if not p2 then return a end
+
+  b = string.sub(rest, 1, p2 - 1)
+  rest = string.sub(rest, p2 + 1)
+
+  local p3 = string.find(rest, "|")
+  if not p3 then
+    c = rest
+    return a, b, c
+  end
+
+  c = string.sub(rest, 1, p3 - 1)
+  d = string.sub(rest, p3 + 1)
+
+  return a, b, c, d
 end
 
-local ev     = parts[1]
-local ts     = tonumber(parts[2])
-local sender = parts[3]
-local zone   = parts[4]
-if zone == "" then zone = nil end
+local function HandleChannel(msg, channel)
+  if channel ~= RH_CHANNEL_NAME then return end
+  if type(msg) ~= "string" then return end
+  if msg == "" then return end
 
-if not ev or not ts or not sender then return end
+  local ev, ts, sender, zone = SplitMessage(msg)
 
+  ts = tonumber(ts)
+  if not ev or not ts or not sender then return end
+  if zone == "" then zone = nil end
 
   RH_Users[sender] = time()
 
@@ -208,7 +233,7 @@ if not ev or not ts or not sender then return end
   local required = RH_VERIFY_REQUIRED
 
   if strsub(ev, 1, 6) == "TIMER_" then
-    ev = strsub(ev, 8) 
+    ev = strsub(ev, 8)
     required = RH_VERIFY_REQUIRED_REQUEST
   end
 
