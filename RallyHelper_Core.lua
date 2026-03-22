@@ -287,8 +287,10 @@ end
     end
 
     if ev == "ZG" then
+	if DB.debug then
         DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[RH DEBUG] AcceptEvent(ZG)|r")
-        AcceptEvent(ev, ts, zone)
+        end
+		AcceptEvent(ev, ts, zone)
         return
     end
 
@@ -416,10 +418,17 @@ local function SafeZoneText()
 end
 
 local function TryDMF()
-  if UnitExists("target") and DMF_NPCS[UnitName("target")] then
-    SendEvent("DMF", SafeZoneText())
+  if UnitExists("npc") then
+    local name = UnitName("npc")
+    if DMF_NPCS[name] then
+      local zone = SafeZoneText()
+      AcceptEvent("DMF", time(), zone)
+      SendEvent("DMF", zone) 
+    end
   end
 end
+
+
 
 local function RequestTimers()
   SendEvent("REQ")
