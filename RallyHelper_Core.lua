@@ -1,3 +1,4 @@
+DEFAULT_CHAT_FRAME:AddMessage("STRING TYPE: "..type(string))
 local RH_CHANNEL_NAME    = "RallyHelper"
 local RH_VERIFY_WINDOW   = 30
 local RH_VERIFY_REQUIRED = 2
@@ -16,10 +17,14 @@ local verify = {}
 local RH_Users = {}
 local lastSend = {}
 
-local strmatch = string.match or function() return nil end
-local strfind  = string.find  or function() return nil end
-local strlower = string.lower or function(s) return s end
-local strsub   = string.sub   or function(s, i, j) return s end
+local str = _G.string or string
+
+local strmatch = str.match or function() return nil end
+local strfind  = str.find  or function() return nil end
+local strlower = str.lower or function(s) return s end
+local strsub   = str.sub   or function(s, i, j) return s end
+local strlen   = str.len   or function(s) return 0 end
+local strgsub  = str.gsub  or function(s) return s end
 
 local floor = math.floor
 
@@ -29,8 +34,7 @@ local RH_Unconfirmed = RHGlobal.Unconfirmed
 
 local function SanitizeChat(msg)
   if not msg then return "" end
-  msg = string.gsub(msg, "|", "||")
-  msg = string.gsub(msg, "%%", "%%%%")
+  msg = strgsub(msg, "%%", "%%%%")
   return msg
 end
 
@@ -54,15 +58,30 @@ local function GetChannelId()
   return nil
 end
 
+
+local function Delay(seconds, func)
+  local f = CreateFrame("Frame")
+  local t = GetTime() + seconds
+  f:SetScript("OnUpdate", function()
+    if GetTime() >= t then
+      f:SetScript("OnUpdate", nil)
+      func()
+    end
+  end)
+end
+
 local function JoinChannel()
   if GetChannelId() then return end
+
   JoinChannelByName(RH_CHANNEL_NAME)
-  C_TimerAfter(1, function()
+
+  Delay(1, function()
     if not GetChannelId() then
       JoinChannelByName(RH_CHANNEL_NAME)
     end
   end)
 end
+
 
 local function EnsureChannel()
   if not GetChannelId() then
@@ -78,6 +97,13 @@ local function CanSend(ev)
   end
 end
 
+local function SanitizeChat(msg)
+  if not msg then return "" end
+  msg = str.gsub(msg, "%%", "%%%%")
+  msg = str.gsub(msg, "|", "||")
+  return msg
+end
+
 local function SendEvent(ev, zone)
   EnsureChannel()
   if not CanSend(ev) then return end
@@ -85,9 +111,20 @@ local function SendEvent(ev, zone)
   local cid = GetChannelId()
   if not cid then return end
 
-  local msg = ev .. "|" .. time() .. "|" .. (UnitName("player") or "?") .. "|" .. (zone or "")
+  local player = UnitName("player") or "?"
+  local sep = "^"
+  local msg = ev .. sep .. time() .. sep .. player
+  if zone and zone ~= "" then
+    msg = msg .. sep .. zone
+  end
+
+  if DB.debug then
+    DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH SEND]|r "..msg.." (cid="..tostring(cid)..")")
+end
+
   SendChatMessage(SanitizeChat(msg), "CHANNEL", nil, cid)
 end
+
 
 local function Prune(list)
   local now = time()
@@ -164,46 +201,138 @@ local function AddUnconfirmedEvent(ev, ts, sender, zone)
   end
 end
 
-local function HandleChannel(msg, channel)
-  if channel ~= RH_CHANNEL_NAME then return end
-  if type(msg) ~= "string" then return end
-  if msg == "" then return end
-
-  local ev, ts, sender, zone = strmatch(msg, "^([^|]+)|([^|]+)|([^|]+)|?(.*)$")
-  if not ev or not ts or not sender then return end
-
-  ts = tonumber(ts)
-  if not ts then return end
-  if zone == "" then zone = nil end
-
-  RH_Users[sender] = time()
-
-  if ev == "REQ" then
-    RespondToRequest()
-    return
-  end
-
-  local required = RH_VERIFY_REQUIRED
-
-  if strsub(ev, 1, 6) == "TIMER_" then
-    ev = strsub(ev, 8)
-    required = RH_VERIFY_REQUIRED_REQUEST
-  end
-
-  if ev == "ZG" then
-    AcceptEvent(ev, ts, zone)
-    return
-  end
-
-  local ok, bestTs, bestZone = VerifyEvent(ev, ts, sender, zone, required)
-  if ok then
-    AcceptEvent(ev, bestTs, bestZone)
-    RH_Unconfirmed[ev] = nil
-    return
-  end
-
-  AddUnconfirmedEvent(ev, ts, sender, zone)
+local function NormalizeChannelName(name)
+    if not name then return "" end
+    name = strlower(name)
+    name = strgsub(name, "^%d+%.%s*", "")
+    name = strgsub(name, "%s+", "")
+    return name
 end
+
+local function HandleChannel(msg, channel)
+
+    if DB.debug then
+    DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH DEBUG RAW]|r channel="..tostring(channel).." msg="..tostring(msg))
+end
+
+
+    local clean = NormalizeChannelName(channel)
+    if clean ~= strlower(RH_CHANNEL_NAME) then
+        return
+    end
+
+    if type(msg) ~= "string" then return end
+    if msg == "" then return end
+
+    if DB.debug then
+    DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH DEBUG]|r HandleChannel fired: "..msg.." / "..channel)
+end
+
+    if DB.debug then
+    DEFAULT_CHAT_FRAME:AddMessage("|cffffff55[RH DEBUG] SplitMessage starting|r")
+end
+
+
+    local function SplitMessage(m)
+        local out = {}
+        local current = ""
+
+        local len = strlen(m) or 0
+        for i = 1, len do
+            local c = strsub(m, i, i)
+            if c == "^" then
+                table.insert(out, current)
+                current = ""
+            else
+                current = current .. c
+            end
+        end
+
+        table.insert(out, current)
+        return out
+    end
+
+    local parts = SplitMessage(msg)
+    local ev    = parts[1]
+    local ts    = tonumber(parts[2])
+    local sender= parts[3]
+    local zone  = parts[4]
+
+    if DB.debug then
+    DEFAULT_CHAT_FRAME:AddMessage("|cffffff55[RH DEBUG PARTS]|r ev="..tostring(ev).." ts="..tostring(ts).." sender="..tostring(sender).." zone="..tostring(zone))
+end
+
+
+    if not ev or not ts or not sender then return end
+    if zone == "" then zone = nil end
+
+    RH_Users[sender] = time()
+
+    if ev == "REQ" then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff8800[RH DEBUG] RespondToRequest() WILL BE CALLED|r")
+        if type(RespondToRequest) == "function" then
+            RespondToRequest()
+        else
+            DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[RH DEBUG] RespondToRequest MISSING|r")
+        end
+        return
+    end
+
+    local required = RH_VERIFY_REQUIRED
+
+    if strsub(ev, 1, 6) == "TIMER_" then
+        DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[RH DEBUG] TIMER RECEIVED: "..ev.."|r")
+        ev = strsub(ev, 8)
+        required = RH_VERIFY_REQUIRED_REQUEST
+    end
+
+    if ev == "ZG" then
+        DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[RH DEBUG] AcceptEvent(ZG)|r")
+        AcceptEvent(ev, ts, zone)
+        return
+    end
+
+    local ok, bestTs, bestZone = VerifyEvent(ev, ts, sender, zone, required)
+    if ok then
+        if DB.debug then
+    DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[RH DEBUG] VerifyEvent OK → AcceptEvent|r")
+end
+
+        AcceptEvent(ev, bestTs, bestZone)
+        RH_Unconfirmed[ev] = nil
+        return
+    end
+
+    if DB.debug then
+    DEFAULT_CHAT_FRAME:AddMessage("|cffffaa00[RH DEBUG] AddUnconfirmedEvent|r")
+end
+
+    AddUnconfirmedEvent(ev, ts, sender, zone)
+end
+
+function RespondToRequest()
+    local player = UnitName("player") or "?"
+    local cid = GetChannelId()
+    if not cid then return end
+
+    local function send(ev, ts, zone)
+        if not ts then return end
+        local msg = ev .. "^" .. ts .. "^" .. player
+        if zone then msg = msg .. "^" .. zone end
+        SendChatMessage(SanitizeChat(msg), "CHANNEL", nil, cid)
+    end
+
+    send("ONY_A", DB.lastOnyA)
+    send("ONY_H", DB.lastOnyH)
+    send("NEF_A", DB.lastNefA)
+    send("NEF_H", DB.lastNefH)
+    send("ZG",    DB.lastZG)
+    send("DMF",   DB.lastDMFTime, DB.lastDMFZone)
+    send("WB",    DB.lastWB,      DB.lastWBZone)
+end
+
+
+
 
 local function CountUsers()
   local now = time()
@@ -278,7 +407,7 @@ local DMF_NPCS = {
 
 local function SafeZoneText()
   local z = GetZoneText() or ""
-  return string.gsub(z, "|", "/")
+  return str.gsub(z, "|", "/")
 end
 
 local function TryDMF()
@@ -328,13 +457,22 @@ function ShareTimersToChat()
 end
 
 local function CreateMinimapButton()
+  if pfUI and pfUI.api and pfUI.api.CreateMinimapButton then
+    pfUI.api.CreateMinimapButton("RallyHelperMinimapButton")
+    return
+  end
+
   if RallyHelperMinimapButton then return end
 
   local b = CreateFrame("Button", "RallyHelperMinimapButton", Minimap)
+
+  b:SetParent(Minimap)
+  b:SetFrameStrata("HIGH")
+  b:SetFrameLevel(10)
+  b:Show()
+
   b:SetWidth(32)
   b:SetHeight(32)
-  b:SetFrameStrata("MEDIUM")
-  b:SetFrameLevel(8)
   b:SetToplevel(true)
   b:EnableMouse(true)
   b:RegisterForClicks("LeftButtonUp", "RightButtonUp", "MiddleButtonUp")
@@ -469,6 +607,8 @@ SlashCmdList["RALLYHELPER"] = function(msg)
     DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Users online: " .. CountUsers())
 
   elseif msg == "debug" then
+    DB.debug = not DB.debug
+    DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Debug: " .. tostring(DB.debug))
     DEFAULT_CHAT_FRAME:AddMessage("ZG: " .. (DB.lastZG and FormatAgo(DB.lastZG) or "unknown"))
     DEFAULT_CHAT_FRAME:AddMessage("DMF: " .. (DB.lastDMFTime and FormatAgo(DB.lastDMFTime) or "unknown"))
 
@@ -510,9 +650,22 @@ f:SetScript("OnEvent", function()
     if type(RH_CreateUI) == "function" then
       RH_CreateUI()
     end
+    if RH_UIFrame and RH_UIFrame.Show then
+        RH_UIFrame:Show()
+    end
+    Delay(0.1, function()
+        if RH_UIFrame and RH_UIFrame.Show then
+            RH_UIFrame:Show()
+        end
+        if RallyHelperMinimapButton and RallyHelperMinimapButton.Show then
+            RallyHelperMinimapButton:Show()
+        end
+    end)
+
+
 
   elseif event == "CHAT_MSG_CHANNEL" then
-    HandleChannel(arg1, arg9)
+    HandleChannel(arg1, arg4)
 
   elseif event == "CHAT_MSG_MONSTER_YELL" then
     HandleYell(arg2, arg1)
