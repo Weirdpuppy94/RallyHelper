@@ -23,37 +23,15 @@ local strsub   = string.sub   or function(s, i, j) return s end
 
 local floor = math.floor
 
--- RHGlobal Bridge für UI-Sync
 RHGlobal = RHGlobal or {}
 RHGlobal.Unconfirmed = RHGlobal.Unconfirmed or {}
 local RH_Unconfirmed = RHGlobal.Unconfirmed
-
-local DMF_NPCS = {
-  ["Sayge"] = true,
-  ["Professor Thaddeus Paleo"] = true,
-  ["Gelvas Grimegate"] = true,
-  ["Stamp Thunderhorn"] = true,
-  ["Darkmoon Faire Mystic Mage"] = true,
-}
-
-local function SafeZoneText()
-  local z = GetZoneText() or ""
-  return string.gsub(z, "|", "/")
-end
 
 local function SanitizeChat(msg)
   if not msg then return "" end
   msg = string.gsub(msg, "|", "||")
   msg = string.gsub(msg, "%%", "%%%%")
   return msg
-end
-
-local function FormatTime(sec)
-  if not sec or sec <= 0 then return "ready" end
-  local h = floor(sec / 3600)
-  local m = floor((sec - h * 3600) / 60)
-  if h > 0 then return h .. "h " .. m .. "m" end
-  return m .. "m"
 end
 
 local function FormatAgo(ts)
@@ -66,19 +44,30 @@ local function FormatAgo(ts)
   return h .. "h " .. m .. "m ago"
 end
 
-local function IsInChannel()
+local function GetChannelId()
   for i = 1, 10 do
-    if GetChannelName(i) == RH_CHANNEL_NAME then return true end
+    local id, name = GetChannelName(i)
+    if name == RH_CHANNEL_NAME then
+      return id
+    end
   end
+  return nil
 end
 
 local function JoinChannel()
-  if not IsInChannel() then JoinChannelByName(RH_CHANNEL_NAME) end
+  if GetChannelId() then return end
+  JoinChannelByName(RH_CHANNEL_NAME)
+  C_TimerAfter(1, function()
+    if not GetChannelId() then
+      JoinChannelByName(RH_CHANNEL_NAME)
+    end
+  end)
 end
 
-local function GetChannelId()
-  local id = GetChannelName(RH_CHANNEL_NAME)
-  if type(id) == "number" and id > 0 then return id end
+local function EnsureChannel()
+  if not GetChannelId() then
+    JoinChannel()
+  end
 end
 
 local function CanSend(ev)
@@ -90,16 +79,20 @@ local function CanSend(ev)
 end
 
 local function SendEvent(ev, zone)
+  EnsureChannel()
   if not CanSend(ev) then return end
+
   local cid = GetChannelId()
   if not cid then return end
+
   local msg = ev .. "|" .. time() .. "|" .. (UnitName("player") or "?") .. "|" .. (zone or "")
   SendChatMessage(SanitizeChat(msg), "CHANNEL", nil, cid)
 end
 
 local function Prune(list)
   local now = time()
-  for i = table.getn(list), 1, -1 do
+  local n = table.getn(list)
+  for i = n, 1, -1 do
     if now - list[i].ts > RH_VERIFY_WINDOW then
       table.remove(list, i)
     end
@@ -111,6 +104,7 @@ local function VerifyEvent(ev, ts, sender, zone, required)
 
   verify[ev] = verify[ev] or {}
   local list = verify[ev]
+
   Prune(list)
 
   for _, v in ipairs(list) do
@@ -119,14 +113,19 @@ local function VerifyEvent(ev, ts, sender, zone, required)
 
   table.insert(list, { ts = ts, sender = sender, zone = zone or "" })
 
-  if table.getn(list) >= required then
+    if table.getn(list) >= required then
     local bestTs, bestZone = 0, ""
+
     for _, v in ipairs(list) do
       if v.ts > bestTs then bestTs = v.ts end
     end
+
     for _, v in ipairs(list) do
-      if v.ts == bestTs and v.zone ~= "" then bestZone = v.zone end
+      if v.ts == bestTs and v.zone ~= "" then
+        bestZone = v.zone
+      end
     end
+
     verify[ev] = nil
     return true, bestTs, bestZone
   end
@@ -159,39 +158,16 @@ local function AddUnconfirmedEvent(ev, ts, sender, zone)
     zone = zone,
     time = time(),
   }
+
   if type(RallyHelper_UpdateUI) == "function" then
     RallyHelper_UpdateUI()
-  end
-end
-
-local function RespondToRequest()
-  if DB.lastOnyA then
-    SendEvent("TIMER_ONY_A")
-  end
-  if DB.lastOnyH then
-    SendEvent("TIMER_ONY_H")
-  end
-  if DB.lastNefA then
-    SendEvent("TIMER_NEF_A")
-  end
-  if DB.lastNefH then
-    SendEvent("TIMER_NEF_H")
-  end
-  if DB.lastZG then
-    SendEvent("TIMER_ZG")
-  end
-  if DB.lastDMFTime then
-    SendEvent("TIMER_DMF", DB.lastDMFZone or "")
-  end
-  if DB.lastWB then
-    SendEvent("TIMER_WB", DB.lastWBZone or "")
   end
 end
 
 local function HandleChannel(msg, channel)
   if channel ~= RH_CHANNEL_NAME then return end
   if type(msg) ~= "string" then return end
-  if not msg or msg == "" then return end
+  if msg == "" then return end
 
   local ev, ts, sender, zone = strmatch(msg, "^([^|]+)|([^|]+)|([^|]+)|?(.*)$")
   if not ev or not ts or not sender then return end
@@ -232,6 +208,7 @@ end
 local function CountUsers()
   local now = time()
   local count = 0
+
   for name, ts in pairs(RH_Users) do
     if now - ts < 60 then
       count = count + 1
@@ -239,16 +216,17 @@ local function CountUsers()
       RH_Users[name] = nil
     end
   end
+
   return count
 end
 
 local function HandleYell(npc, msg)
   if type(npc) ~= "string" or type(msg) ~= "string" then return end
 
-  local lowerMsg = strlower(msg)
+  local lowerMsg = string.lower(msg)
 
   local function has(s)
-    return strfind(lowerMsg, s, 1, true) ~= nil
+    return string.find(lowerMsg, s, 1, true) ~= nil
   end
 
   if npc == "Major Mattingly" and (has("onyxia") or has("slain") or has("head")) then
@@ -290,6 +268,19 @@ local function HandleYell(npc, msg)
   end
 end
 
+local DMF_NPCS = {
+  ["Sayge"] = true,
+  ["Professor Thaddeus Paleo"] = true,
+  ["Gelvas Grimegate"] = true,
+  ["Stamp Thunderhorn"] = true,
+  ["Darkmoon Faire Mystic Mage"] = true,
+}
+
+local function SafeZoneText()
+  local z = GetZoneText() or ""
+  return string.gsub(z, "|", "/")
+end
+
 local function TryDMF()
   if UnitExists("target") and DMF_NPCS[UnitName("target")] then
     SendEvent("DMF", SafeZoneText())
@@ -300,59 +291,40 @@ local function RequestTimers()
   SendEvent("REQ")
 end
 
+local function FormatTimeSimple(sec)
+  if not sec or sec <= 0 then return "ready" end
+  local h = math.floor(sec / 3600)
+  local m = math.floor((sec - h * 3600) / 60)
+  if h > 0 then return h .. "h " .. m .. "m" end
+  return m .. "m"
+end
+
 function PrintStatus()
   local now = time()
-  DEFAULT_CHAT_FRAME:AddMessage("Ony SW: " .. (DB.lastOnyA and FormatTime(DB.lastOnyA + ONY_CD - now) or "ready"))
-  DEFAULT_CHAT_FRAME:AddMessage("Ony OG: " .. (DB.lastOnyH and FormatTime(DB.lastOnyH + ONY_CD - now) or "ready"))
-  DEFAULT_CHAT_FRAME:AddMessage("Nef SW: " .. (DB.lastNefA and FormatTime(DB.lastNefA + NEF_CD - now) or "ready"))
-  DEFAULT_CHAT_FRAME:AddMessage("Nef OG: " .. (DB.lastNefH and FormatTime(DB.lastNefH + NEF_CD - now) or "ready"))
+  DEFAULT_CHAT_FRAME:AddMessage("Ony SW: " .. (DB.lastOnyA and FormatTimeSimple(DB.lastOnyA + ONY_CD - now) or "ready"))
+  DEFAULT_CHAT_FRAME:AddMessage("Ony OG: " .. (DB.lastOnyH and FormatTimeSimple(DB.lastOnyH + ONY_CD - now) or "ready"))
+  DEFAULT_CHAT_FRAME:AddMessage("Nef SW: " .. (DB.lastNefA and FormatTimeSimple(DB.lastNefA + NEF_CD - now) or "ready"))
+  DEFAULT_CHAT_FRAME:AddMessage("Nef OG: " .. (DB.lastNefH and FormatTimeSimple(DB.lastNefH + NEF_CD - now) or "ready"))
   DEFAULT_CHAT_FRAME:AddMessage("ZG last drop: " .. (DB.lastZG and FormatAgo(DB.lastZG) or "unknown"))
   DEFAULT_CHAT_FRAME:AddMessage("DMF last seen: " .. (DB.lastDMFTime and FormatAgo(DB.lastDMFTime) or "unknown"))
-  DEFAULT_CHAT_FRAME:AddMessage("Rend: " .. (DB.lastWB and FormatTime(DB.lastWB + WB_CD - now) or "ready"))
+  DEFAULT_CHAT_FRAME:AddMessage("Rend: " .. (DB.lastWB and FormatTimeSimple(DB.lastWB + WB_CD - now) or "ready"))
 end
 
 function RallyHelper_InsertToChat(text)
-  if not ChatFrameEditBox:IsShown() then ChatFrame_OpenChat("") end
+  if not ChatFrameEditBox:IsShown() then
+    ChatFrame_OpenChat("")
+  end
   ChatFrameEditBox:Insert(text)
 end
 
 function ShareTimersToChat()
   local now = time()
   RallyHelper_InsertToChat(
-    "Ony SW: " .. (DB.lastOnyA and FormatTime(DB.lastOnyA + ONY_CD - now) or "ready") .. " | " ..
-    "Ony OG: " .. (DB.lastOnyH and FormatTime(DB.lastOnyH + ONY_CD - now) or "ready") .. " | " ..
-    "Nef SW: " .. (DB.lastNefA and FormatTime(DB.lastNefA + NEF_CD - now) or "ready") .. " | " ..
-    "Nef OG: " .. (DB.lastNefH and FormatTime(DB.lastNefH + NEF_CD - now) or "ready")
+    "Ony SW: " .. (DB.lastOnyA and FormatTimeSimple(DB.lastOnyA + ONY_CD - now) or "ready") .. " | " ..
+    "Ony OG: " .. (DB.lastOnyH and FormatTimeSimple(DB.lastOnyH + ONY_CD - now) or "ready") .. " | " ..
+    "Nef SW: " .. (DB.lastNefA and FormatTimeSimple(DB.lastNefA + NEF_CD - now) or "ready") .. " | " ..
+    "Nef OG: " .. (DB.lastNefH and FormatTimeSimple(DB.lastNefH + NEF_CD - now) or "ready")
   )
-end
-
-SLASH_RALLYHELPER1 = "/rally"
-SlashCmdList["RALLYHELPER"] = function(msg)
-  msg = strlower(msg or "")
-
-  if msg == "status" then
-    PrintStatus()
-  elseif msg == "share" then
-    ShareTimersToChat()
-  elseif msg == "reset" then
-    DB.ui = nil
-    ReloadUI()
-  elseif msg == "lock" then
-    DB.locked = not DB.locked
-    DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] UI lock: " .. tostring(DB.locked))
-  elseif msg == "users" then
-    DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Users online: " .. CountUsers())
-  elseif msg == "debug" then
-    DEFAULT_CHAT_FRAME:AddMessage("ZG: " .. (DB.lastZG and FormatAgo(DB.lastZG) or "unknown"))
-    DEFAULT_CHAT_FRAME:AddMessage("DMF: " .. (DB.lastDMFTime and FormatAgo(DB.lastDMFTime) or "unknown"))
-  elseif msg == "request" then
-    RequestTimers()
-    DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Requested timers from channel")
-  else
-    if type(RallyHelper_ToggleUI) == "function" then
-      RallyHelper_ToggleUI()
-    end
-  end
 end
 
 local function CreateMinimapButton()
@@ -365,7 +337,7 @@ local function CreateMinimapButton()
   b:SetFrameLevel(8)
   b:SetToplevel(true)
   b:EnableMouse(true)
-  b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+  b:RegisterForClicks("LeftButtonUp", "RightButtonUp", "MiddleButtonUp")
   b:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
 
   b.icon = b:CreateTexture(nil, "ARTWORK")
@@ -410,6 +382,7 @@ local function CreateMinimapButton()
     GameTooltip:AddLine("Shift + Left: Share timers")
     GameTooltip:AddLine("Alt + Click: Size window")
     GameTooltip:AddLine("Alt + Drag: Move icon")
+    GameTooltip:AddLine("Middle Mouse: Unconfirmed Buffs")
     GameTooltip:Show()
   end)
 
@@ -443,34 +416,68 @@ local function CreateMinimapButton()
   end)
 
   b:SetScript("OnClick", function()
+    if arg1 == "MiddleButton" then
+      RallyHelper_ToggleUnconfirmed()
+      return
+    end
+
     if arg1 == "RightButton" then
       PrintStatus()
       return
     end
+
     if IsAltKeyDown() then
       if b.didDrag then
         b.didDrag = false
         return
       end
-      if type(RallyHelper_ToggleSizeUI) == "function" then
-        RallyHelper_ToggleSizeUI()
-      end
+      RallyHelper_ToggleSizeUI()
       return
     end
+
     if IsShiftKeyDown() then
       ShareTimersToChat()
       return
     end
-    if type(RallyHelper_ToggleUI) == "function" then
-      RallyHelper_ToggleUI()
-    end
+
+    RallyHelper_ToggleUI()
   end)
 
   UpdatePos()
-  if DB.minimap.hide then
-    b:Hide()
+  if DB.minimap.hide then b:Hide() else b:Show() end
+end
+
+SLASH_RALLYHELPER1 = "/rally"
+SlashCmdList["RALLYHELPER"] = function(msg)
+  msg = string.lower(msg or "")
+
+  if msg == "status" then
+    PrintStatus()
+
+  elseif msg == "share" then
+    ShareTimersToChat()
+
+  elseif msg == "reset" then
+    DB.ui = nil
+    ReloadUI()
+
+  elseif msg == "lock" then
+    DB.locked = not DB.locked
+    DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] UI lock: " .. tostring(DB.locked))
+
+  elseif msg == "users" then
+    DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Users online: " .. CountUsers())
+
+  elseif msg == "debug" then
+    DEFAULT_CHAT_FRAME:AddMessage("ZG: " .. (DB.lastZG and FormatAgo(DB.lastZG) or "unknown"))
+    DEFAULT_CHAT_FRAME:AddMessage("DMF: " .. (DB.lastDMFTime and FormatAgo(DB.lastDMFTime) or "unknown"))
+
+  elseif msg == "request" then
+    RequestTimers()
+    DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Requested timers from channel")
+
   else
-    b:Show()
+    RallyHelper_ToggleUI()
   end
 end
 
