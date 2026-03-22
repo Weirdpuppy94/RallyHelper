@@ -190,6 +190,21 @@ local function AddUnconfirmedEvent(ev, ts, sender, zone)
     RallyHelper_UpdateUI()
   end
 end
+local function CountUsers()
+  local now = time()
+  local count = 0
+
+  for name, ts in pairs(RH_Users) do
+    if now - ts < 60 then
+      count = count + 1
+    else
+      RH_Users[name] = nil
+    end
+  end
+
+  return count
+end
+
 
 local function NormalizeChannelName(name)
   if not name then return "" end
