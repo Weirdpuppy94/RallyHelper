@@ -99,7 +99,7 @@ Reset UI position and settings.
 
 # 🧾 **RallyHelper – Changelog**
 
-## **v1.3.5 – Stability & Vanilla Compatibility Update**  
+## **v1.3.6 – Stability & Vanilla Compatibility Update**  
 **Release:** 2026‑03‑22
 
 ### 🔧 **Fixes**
