@@ -29,8 +29,12 @@ local strgsub  = str.gsub  or function(s) return s end
 local floor = math.floor
 
 RHGlobal = RHGlobal or {}
+RH_TimerResponses = RH_TimerResponses or {}
+RH_TimerResponseTimers = RH_TimerResponseTimers or {}
+local TIMER_RESPONSE_WINDOW = 2.0
 RHGlobal.Unconfirmed = RHGlobal.Unconfirmed or {}
 local RH_Unconfirmed = RHGlobal.Unconfirmed
+local RH_ClockOffset = RH_ClockOffset or {}
 
 local function SanitizeChat(msg)
   if not msg then return "" end
@@ -94,7 +98,7 @@ local function CanSend(ev)
   end
 end
 
-local function SendEvent(ev, zone)
+local function SendEvent(ev, zone, ts)
   EnsureChannel()
   if not CanSend(ev) then return end
 
@@ -103,16 +107,72 @@ local function SendEvent(ev, zone)
 
   local player = UnitName("player") or "?"
   local sep = "^"
-  local msg = ev .. sep .. time() .. sep .. player
+  ts = ts or time()
+  local msg = ev .. sep .. tostring(ts) .. sep .. player
   if zone and zone ~= "" then
     msg = msg .. sep .. zone
   end
 
-  if DB.debug then
+  if DB and DB.debug then
     DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH SEND]|r "..msg.." (cid="..tostring(cid)..")")
   end
 
   SendChatMessage(SanitizeChat(msg), "CHANNEL", nil, cid)
+end
+
+local function ScheduleAfter(sec, fn)
+  if type(C_Timer) == "table" and type(C_Timer.After) == "function" then
+    C_Timer.After(sec, fn)
+  else
+    Delay(sec, fn)
+  end
+end
+
+function RespondToRequest()
+  EnsureChannel()
+  if not CanSend("TIMER_REQ") then return end
+
+  local sends = {}
+
+  if DB and DB.lastOnyA and DB.lastOnyA > 0 then table.insert(sends, function() SendEvent("TIMER_ONY_A", nil, DB.lastOnyA) end) end
+  if DB and DB.lastOnyH and DB.lastOnyH > 0 then table.insert(sends, function() SendEvent("TIMER_ONY_H", nil, DB.lastOnyH) end) end
+  if DB and DB.lastNefA and DB.lastNefA > 0 then table.insert(sends, function() SendEvent("TIMER_NEF_A", nil, DB.lastNefA) end) end
+  if DB and DB.lastNefH and DB.lastNefH > 0 then table.insert(sends, function() SendEvent("TIMER_NEF_H", nil, DB.lastNefH) end) end
+
+  if DB and DB.lastZG and DB.lastZG > 0 then table.insert(sends, function() SendEvent("TIMER_ZG", nil, DB.lastZG) end) end
+  if DB and DB.lastDMFTime and DB.lastDMFTime > 0 then table.insert(sends, function() SendEvent("TIMER_DMF", DB.lastDMFZone or "", DB.lastDMFTime) end) end
+  if DB and DB.lastWB and DB.lastWB > 0 then table.insert(sends, function() SendEvent("TIMER_WB", DB.lastWBZone or "", DB.lastWB) end) end
+
+  if next(sends) == nil then
+    if DB and DB.debug then DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH]|r RespondToRequest: nothing to send") end
+    return
+  end
+
+  for i, fn in ipairs(sends) do
+    local idx = i
+    local fnLocal = fn
+    local delay = (idx - 1) * 0.12
+    ScheduleAfter(delay, function()
+      if type(fnLocal) == "function" then
+        pcall(fnLocal)
+      end
+      if DB and DB.debug then DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH]|r RespondToRequest: sent part "..tostring(idx).." delay="..tostring(delay)) end
+    end)
+  end
+
+  ScheduleAfter(1.6, function()
+    for i, fn in ipairs(sends) do
+      local idx = i
+      local fnLocal = fn
+      local delay = (idx - 1) * 0.12
+      ScheduleAfter(delay, function()
+        if type(fnLocal) == "function" then
+          pcall(fnLocal)
+        end
+        if DB and DB.debug then DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH]|r RespondToRequest: retried part "..tostring(idx).." delay="..tostring(delay)) end
+      end)
+    end
+  end)
 end
 
 local function Prune(list)
@@ -124,7 +184,6 @@ local function Prune(list)
     end
   end
 end
-
 
 local function VerifyEvent(ev, ts, sender, zone, required)
   required = required or RH_VERIFY_REQUIRED
@@ -138,23 +197,29 @@ local function VerifyEvent(ev, ts, sender, zone, required)
     if v.sender == sender then return end
   end
 
-  table.insert(list, { ts = ts, sender = sender, zone = zone or "" })
+  local adjusted = ts
+  if RH_ClockOffset and RH_ClockOffset[sender] then
+    adjusted = ts + RH_ClockOffset[sender]
+  end
+
+  table.insert(list, { ts = ts, adj = adjusted, sender = sender, zone = zone or "" })
 
   if table.getn(list) >= required then
-    local bestTs, bestZone = 0, ""
-
+    local bestAdj, bestZone = -1, ""
     for _, v in ipairs(list) do
-      if v.ts > bestTs then bestTs = v.ts end
+      if v.adj > bestAdj then bestAdj = v.adj end
     end
 
+    local chosenOriginalTs = 0
     for _, v in ipairs(list) do
-      if v.ts == bestTs and v.zone ~= "" then
-        bestZone = v.zone
+      if v.adj == bestAdj then
+        chosenOriginalTs = v.ts
+        if v.zone ~= "" then bestZone = v.zone end
       end
     end
 
     verify[ev] = nil
-    return true, bestTs, bestZone
+    return true, chosenOriginalTs, bestZone
   end
 end
 
@@ -169,7 +234,7 @@ local function AcceptEvent(ev, ts, zone)
 
   RH_Unconfirmed[ev] = nil
 
-  if DB.toast then
+  if DB and DB.toast then
     DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RallyHelper]|r " .. ev .. " confirmed")
   end
 
@@ -190,6 +255,7 @@ local function AddUnconfirmedEvent(ev, ts, sender, zone)
     RallyHelper_UpdateUI()
   end
 end
+
 local function CountUsers()
   local now = time()
   local count = 0
@@ -205,7 +271,6 @@ local function CountUsers()
   return count
 end
 
-
 local function NormalizeChannelName(name)
   if not name then return "" end
   name = strlower(name)
@@ -215,7 +280,7 @@ local function NormalizeChannelName(name)
 end
 
 local function HandleChannel(msg, channel)
-  if DB.debug then
+  if DB and DB.debug then
     DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH DEBUG RAW]|r channel="..tostring(channel).." msg="..tostring(msg))
   end
 
@@ -248,6 +313,16 @@ local function HandleChannel(msg, channel)
   local sender= parts[3]
   local zone  = parts[4]
 
+  RH_ClockOffset = RH_ClockOffset or {}
+  local now = time()
+  if ts and sender then
+    local offset = now - ts
+    RH_ClockOffset[sender] = (RH_ClockOffset[sender] or offset) * 0.8 + offset * 0.2
+    if DB and DB.debug then
+      DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH OFFSET]|r "..tostring(sender).." -> "..tostring(RH_ClockOffset[sender]))
+    end
+  end
+
   if not ev or not ts or not sender then return end
   if zone == "" then zone = nil end
 
@@ -260,10 +335,41 @@ local function HandleChannel(msg, channel)
     return
   end
 
-  local required = RH_VERIFY_REQUIRED
   if strsub(ev, 1, 6) == "TIMER_" then
-    ev = strsub(ev, 8)
-    required = RH_VERIFY_REQUIRED_REQUEST
+    local realEv = strsub(ev, 7)
+    RH_TimerResponses[realEv] = RH_TimerResponses[realEv] or {}
+    table.insert(RH_TimerResponses[realEv], { ts = ts, sender = sender, zone = zone })
+
+    if DB and DB.debug then
+      DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH TIMER RECV]|r "..tostring(sender).." -> "..tostring(realEv).." ts="..tostring(ts).." zone="..tostring(zone))
+    end
+
+    if not RH_TimerResponseTimers[realEv] then
+      RH_TimerResponseTimers[realEv] = true
+      ScheduleAfter(TIMER_RESPONSE_WINDOW, function()
+        local bestTs, bestZone = 0, ""
+        for _, v in ipairs(RH_TimerResponses[realEv] or {}) do
+          if v.ts > bestTs then
+            bestTs = v.ts
+            bestZone = v.zone or ""
+          elseif v.ts == bestTs and (v.zone or "") ~= "" then
+            bestZone = v.zone
+          end
+        end
+
+        if bestTs > 0 then
+          AcceptEvent(realEv, bestTs, bestZone)
+          if DB and DB.debug then
+            DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH TIMER PICK]|r "..tostring(realEv).." -> "..tostring(bestTs).." zone="..tostring(bestZone))
+          end
+        end
+
+        RH_TimerResponses[realEv] = nil
+        RH_TimerResponseTimers[realEv] = nil
+      end)
+    end
+
+    return
   end
 
   if ev == "ZG" then
@@ -276,6 +382,7 @@ local function HandleChannel(msg, channel)
     return
   end
 
+  local required = RH_VERIFY_REQUIRED
   local ok, bestTs, bestZone = VerifyEvent(ev, ts, sender, zone, required)
   if ok then
     AcceptEvent(ev, bestTs, bestZone)
@@ -285,6 +392,7 @@ local function HandleChannel(msg, channel)
 
   AddUnconfirmedEvent(ev, ts, sender, zone)
 end
+
 
 local function HandleYell(npc, msg)
   if type(npc) ~= "string" or type(msg) ~= "string" then return end
@@ -358,10 +466,9 @@ local function TryDMF()
     if DMF_NPCS[name] then
       local zone = SafeZoneText()
 
-
       if not DB.lastDMFTime or (time() - DB.lastDMFTime) > 5 then
         AcceptEvent("DMF", time(), zone)
-        SendEvent("DMF", zone) 
+        SendEvent("DMF", zone)
       end
     end
   end
@@ -600,7 +707,7 @@ f:SetScript("OnEvent", function()
 
     JoinChannel()
     CreateMinimapButton()
-    RequestTimers()
+    ScheduleAfter(3, RequestTimers)
 
     if type(RH_CreateUI) == "function" then
       RH_CreateUI()
