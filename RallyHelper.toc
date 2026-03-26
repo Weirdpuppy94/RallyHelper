@@ -2,7 +2,7 @@
 ## Title: RallyHelper
 ## Notes: Shows Onyxia/Nefarian/DMF/ZG timers; scalable UI with hover fade
 ## Author: Weirdpuppy
-## Version: 1.3.8
+## Version: 1.3.9
 ## SavedVariables: RallyHelperDB
 
 RallyHelper_Core.lua
