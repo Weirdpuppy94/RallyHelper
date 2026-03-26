@@ -1,6 +1,7 @@
 -- Version: 1.3.8
 
 local RH_CHANNEL_NAME    = "RallyHelper"
+local RH_ADDON_PREFIX    = "RallyHelper"
 local RH_VERIFY_WINDOW   = 30
 local RH_VERIFY_REQUIRED = 2
 local RH_VERIFY_REQUIRED_REQUEST = 5
@@ -66,6 +67,16 @@ local function EnsureDB()
   }
   DB.toastMode = DB.toastMode or "none"  -- "chat" | "ui" | "none"
   DB.rhIgnore  = DB.rhIgnore or {}
+  DB.showRawInChat = DB.showRawInChat or false
+  DB.minimap = DB.minimap or { angle = 220, hide = false }
+end
+
+pcall(EnsureDB)
+
+if type(C_ChatInfo) == "table" and type(C_ChatInfo.RegisterAddonMessagePrefix) == "function" then
+  pcall(function() C_ChatInfo.RegisterAddonMessagePrefix(RH_ADDON_PREFIX) end)
+elseif type(RegisterAddonMessagePrefix) == "function" then
+  pcall(function() RegisterAddonMessagePrefix(RH_ADDON_PREFIX) end)
 end
 
 local function SanitizeChat(msg)
@@ -131,22 +142,41 @@ local function CanSend(ev)
 end
 
 local function SendEvent(ev, zone, ts)
-  EnsureChannel()
-  if not CanSend(ev) then return end
-
-  local cid = GetChannelId()
-  if not cid then return end
-
+  ts = ts or time()
   local player = UnitName("player") or "?"
   local sep = "^"
-  ts = ts or time()
   local msg = ev .. sep .. tostring(ts) .. sep .. player
-  if zone and zone ~= "" then
-    msg = msg .. sep .. zone
-  end
+  if zone and zone ~= "" then msg = msg .. sep .. zone end
   msg = msg .. sep .. "v" .. tostring(ADDON_VERSION)
 
-  SendChatMessage(SanitizeChat(msg), "CHANNEL", nil, cid)
+  local ok = false
+  if type(C_ChatInfo) == "table" and type(C_ChatInfo.SendAddonMessage) == "function" then
+    local cid = GetChannelId()
+    if cid then
+      pcall(function() C_ChatInfo.SendAddonMessage(RH_ADDON_PREFIX, msg, "CHANNEL", tostring(cid)) end)
+      ok = true
+    else
+      pcall(function() C_ChatInfo.SendAddonMessage(RH_ADDON_PREFIX, msg, "GUILD") end)
+      ok = true
+    end
+  elseif type(SendAddonMessage) == "function" then
+    local cid = GetChannelId()
+    if cid then
+      pcall(function() SendAddonMessage(RH_ADDON_PREFIX, msg, "CHANNEL", tostring(cid)) end)
+      ok = true
+    else
+      pcall(function() SendAddonMessage(RH_ADDON_PREFIX, msg, "GUILD") end)
+      ok = true
+    end
+  else
+    local cid = GetChannelId()
+    if cid then
+      pcall(function() SendChatMessage(SanitizeChat(msg), "CHANNEL", nil, cid) end)
+      ok = true
+    end
+  end
+
+  return ok
 end
 
 local function ScheduleAfter(sec, fn)
@@ -478,7 +508,6 @@ local function InjectSoundCheckbox()
 end
 
 ScheduleAfter(0.2, InjectSoundCheckbox)
-
 SLASH_RALLYTOAST1 = "/rallytoast"
 SlashCmdList["RALLYTOAST"] = function(input)
   local m = strlower(input or "")
@@ -489,7 +518,6 @@ SlashCmdList["RALLYTOAST"] = function(input)
     DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Usage: /rallytoast chat|ui|none")
   end
 end
-
 
 SLASH_RALLYIGNORE1 = "/rallyignore"
 SlashCmdList["RALLYIGNORE"] = function(msg)
@@ -907,7 +935,11 @@ local function CreateMinimapButton()
   end)
 
   UpdatePos()
-  if DB.minimap.hide then b:Hide() else b:Show() end
+  if DB.minimap and DB.minimap.hide == true then
+    b:Hide()
+  else
+    b:Show()
+  end
 end
 
 SLASH_RALLYHELPER1 = "/rally"
@@ -938,55 +970,103 @@ SlashCmdList["RALLYHELPER"] = function(msg)
 end
 
 local f = CreateFrame("Frame")
+f:RegisterEvent("ADDON_LOADED")
 f:RegisterEvent("PLAYER_LOGIN")
+f:RegisterEvent("PLAYER_ENTERING_WORLD")
+f:RegisterEvent("CHAT_MSG_ADDON")
 f:RegisterEvent("CHAT_MSG_CHANNEL")
 f:RegisterEvent("CHAT_MSG_MONSTER_YELL")
 f:RegisterEvent("GOSSIP_SHOW")
 f:RegisterEvent("QUEST_GREETING")
 f:RegisterEvent("MERCHANT_SHOW")
+local function TryEnsureUIOnce()
+  pcall(EnsureDB)
+  if type(RH_CreateUI) == "function" then
+    pcall(RH_CreateUI)
+    if RH_UIFrame and type(RH_UIFrame.Show) == "function" then
+      pcall(function() RH_UIFrame:Show() end)
+    end
+  end
+  DB = DB or RallyHelperDB or {}
+  DB.minimap = DB.minimap or { angle = 220, hide = false }
+  pcall(CreateMinimapButton)
+  if RallyHelperMinimapButton and type(RallyHelperMinimapButton.Show) == "function" then
+    if DB.minimap and DB.minimap.hide == true then
+      pcall(function() RallyHelperMinimapButton:Hide() end)
+    else
+      pcall(function() RallyHelperMinimapButton:Show() end)
+    end
+  end
+end
 
-f:SetScript("OnEvent", function()
+TryEnsureUIOnce()
+ScheduleAfter(0.25, TryEnsureUIOnce)
+ScheduleAfter(0.6, TryEnsureUIOnce)
+ScheduleAfter(1.2, TryEnsureUIOnce)
+
+
+f:SetScript("OnEvent", function(self, event, arg1, arg2, arg3, arg4)
+  if event == "ADDON_LOADED" then
+    if arg1 == "RallyHelper" then
+      pcall(EnsureDB)
+      if type(RH_CreateUI) == "function" then
+        pcall(RH_CreateUI)
+        if RH_UIFrame and RH_UIFrame.Show then pcall(function() RH_UIFrame:Show() end) end
+      end
+      pcall(CreateMinimapButton)
+    end
+    return
+  end
+
   if event == "PLAYER_LOGIN" then
-    if type(EnsureDB) == "function" then pcall(EnsureDB) end
-
+    pcall(EnsureDB)
     JoinChannel()
-    CreateMinimapButton()
-
-    ScheduleAfter(3, function()
-      local now     = time()
-      local MAX_AGE = 7 * 24 * 3600
-      local hasValid = DB and (
-        (DB.lastOnyA    and DB.lastOnyA    > 0 and (now - DB.lastOnyA)    < MAX_AGE) or
-        (DB.lastOnyH    and DB.lastOnyH    > 0 and (now - DB.lastOnyH)    < MAX_AGE) or
-        (DB.lastNefA    and DB.lastNefA    > 0 and (now - DB.lastNefA)    < MAX_AGE) or
-        (DB.lastNefH    and DB.lastNefH    > 0 and (now - DB.lastNefH)    < MAX_AGE) or
-        (DB.lastZG      and DB.lastZG      > 0 and (now - DB.lastZG)      < MAX_AGE) or
-        (DB.lastWB      and DB.lastWB      > 0 and (now - DB.lastWB)      < MAX_AGE) or
-        (DB.lastDMFTime and DB.lastDMFTime > 0 and (now - DB.lastDMFTime) < MAX_AGE)
-      )
-      if not hasValid then
-        RequestTimers()
+    if type(RH_CreateUI) == "function" then
+      pcall(RH_CreateUI)
+      if RH_UIFrame and RH_UIFrame.Show then pcall(function() RH_UIFrame:Show() end) end
+    end
+    pcall(CreateMinimapButton)
+    ScheduleAfter(0.6, function()
+      if type(RH_CreateUI) == "function" then
+        pcall(RH_CreateUI)
+        if RH_UIFrame and RH_UIFrame.Show then pcall(function() RH_UIFrame:Show() end) end
       end
+      pcall(CreateMinimapButton)
     end)
-
-    if type(RH_CreateUI) == "function" then RH_CreateUI() end
-
-    if RH_UIFrame and RH_UIFrame.Show then RH_UIFrame:Show() end
-
-    Delay(0.1, function()
-      if RH_UIFrame and RH_UIFrame.Show then RH_UIFrame:Show() end
-      if RallyHelperMinimapButton and RallyHelperMinimapButton.Show then
-        RallyHelperMinimapButton:Show()
+    return
+  end
+  if event == "PLAYER_ENTERING_WORLD" then
+    pcall(EnsureDB)
+    if type(RH_CreateUI) == "function" then
+      pcall(RH_CreateUI)
+      if RH_UIFrame and RH_UIFrame.Show then pcall(function() RH_UIFrame:Show() end) end
+    end
+    pcall(CreateMinimapButton)
+    return
+  end
+  if event == "CHAT_MSG_ADDON" then
+    local prefix  = arg1
+    local message = arg2
+    local channel = arg3
+    local sender  = arg4
+    if prefix == RH_ADDON_PREFIX and type(message) == "string" then
+      if DB and DB.showRawInChat then
+        DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper RAW] " .. tostring(message))
       end
-    end)
-
-  elseif event == "CHAT_MSG_CHANNEL" then
+      HandleChannel(message, tostring(channel or ""))
+    end
+    return
+  end
+  if event == "CHAT_MSG_CHANNEL" then
     HandleChannel(arg1, arg4)
-
-  elseif event == "CHAT_MSG_MONSTER_YELL" then
+    return
+  end
+  if event == "CHAT_MSG_MONSTER_YELL" then
     HandleYell(arg2, arg1)
-
-  elseif event == "GOSSIP_SHOW" or event == "QUEST_GREETING" or event == "MERCHANT_SHOW" then
+    return
+  end
+  if event == "GOSSIP_SHOW" or event == "QUEST_GREETING" or event == "MERCHANT_SHOW" then
     TryDMF()
+    return
   end
 end)
