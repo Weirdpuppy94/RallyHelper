@@ -993,7 +993,7 @@ f:SetScript("OnEvent", function()
       f.AddMessage = function(self, msg, r, g, b, id)
         if type(msg) == "string" then
           if string.find(string.lower(msg), nameLower, 1, true) then
-            return -- hide from player
+            return
           end
         end
         return orig(self, msg, r, g, b, id)
