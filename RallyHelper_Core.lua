@@ -1,7 +1,7 @@
--- Version: 1.3.8
+-- Version: 1.3.9
+
 
 local RH_CHANNEL_NAME    = "RallyHelper"
-local RH_ADDON_PREFIX    = "RallyHelper"
 local RH_VERIFY_WINDOW   = 30
 local RH_VERIFY_REQUIRED = 2
 local RH_VERIFY_REQUIRED_REQUEST = 5
@@ -67,16 +67,7 @@ local function EnsureDB()
   }
   DB.toastMode = DB.toastMode or "none"  -- "chat" | "ui" | "none"
   DB.rhIgnore  = DB.rhIgnore or {}
-  DB.showRawInChat = DB.showRawInChat or false
-  DB.minimap = DB.minimap or { angle = 220, hide = false }
-end
-
-pcall(EnsureDB)
-
-if type(C_ChatInfo) == "table" and type(C_ChatInfo.RegisterAddonMessagePrefix) == "function" then
-  pcall(function() C_ChatInfo.RegisterAddonMessagePrefix(RH_ADDON_PREFIX) end)
-elseif type(RegisterAddonMessagePrefix) == "function" then
-  pcall(function() RegisterAddonMessagePrefix(RH_ADDON_PREFIX) end)
+  DB.debug = DB.debug or false
 end
 
 local function SanitizeChat(msg)
@@ -142,42 +133,27 @@ local function CanSend(ev)
 end
 
 local function SendEvent(ev, zone, ts)
-  ts = ts or time()
+  EnsureChannel()
+  if not CanSend(ev) then return end
+
+  local cid = GetChannelId()
+  if not cid then return end
+
   local player = UnitName("player") or "?"
   local sep = "^"
+  ts = ts or time()
   local msg = ev .. sep .. tostring(ts) .. sep .. player
-  if zone and zone ~= "" then msg = msg .. sep .. zone end
+  if zone and zone ~= "" then
+    msg = msg .. sep .. zone
+  end
   msg = msg .. sep .. "v" .. tostring(ADDON_VERSION)
 
-  local ok = false
-  if type(C_ChatInfo) == "table" and type(C_ChatInfo.SendAddonMessage) == "function" then
-    local cid = GetChannelId()
-    if cid then
-      pcall(function() C_ChatInfo.SendAddonMessage(RH_ADDON_PREFIX, msg, "CHANNEL", tostring(cid)) end)
-      ok = true
-    else
-      pcall(function() C_ChatInfo.SendAddonMessage(RH_ADDON_PREFIX, msg, "GUILD") end)
-      ok = true
-    end
-  elseif type(SendAddonMessage) == "function" then
-    local cid = GetChannelId()
-    if cid then
-      pcall(function() SendAddonMessage(RH_ADDON_PREFIX, msg, "CHANNEL", tostring(cid)) end)
-      ok = true
-    else
-      pcall(function() SendAddonMessage(RH_ADDON_PREFIX, msg, "GUILD") end)
-      ok = true
-    end
-  else
-    local cid = GetChannelId()
-    if cid then
-      pcall(function() SendChatMessage(SanitizeChat(msg), "CHANNEL", nil, cid) end)
-      ok = true
-    end
-  end
 
-  return ok
+  pcall(function()
+    SendChatMessage(SanitizeChat(msg), "CHANNEL", nil, cid)
+  end)
 end
+
 
 local function ScheduleAfter(sec, fn)
   if type(C_Timer) == "table" and type(C_Timer.After) == "function" then
@@ -187,17 +163,18 @@ local function ScheduleAfter(sec, fn)
   end
 end
 
+
 function RespondToRequest()
   EnsureChannel()
   if not CanSend("TIMER_REQ") then return end
 
   local now = time()
 
-  local ONY_TOLERANCE = 30 * 60
-  local WB_TOLERANCE  = 6 * 3600
-  local EVENT_MAX_AGE = 24 * 3600
+  local ONY_TOLERANCE = 30 * 60   
+  local WB_TOLERANCE  = 6 * 3600  
+  local EVENT_MAX_AGE = 24 * 3600 
 
-  local sends = {}
+  local sends = {}  
 
   local function pushIfValid(ev, ts, zone, cooldown, tolerance, eventMaxAge)
     if not ts or type(ts) ~= "number" then return end
@@ -205,37 +182,48 @@ function RespondToRequest()
     local age = now - ts
     if cooldown and type(cooldown) == "number" then
       local allowed = cooldown + (tolerance or 0)
-      if age > allowed then return end
+      if age > allowed then
+        
+        return
+      end
     else
-      if eventMaxAge and age > eventMaxAge then return end
+      if eventMaxAge and age > eventMaxAge then
+        
+        return
+      end
     end
     table.insert(sends, function() SendEvent("TIMER_"..ev, zone or "", ts) end)
   end
 
-  pushIfValid("ONY_A", DB and DB.lastOnyA,    nil,                   ONY_CD, ONY_TOLERANCE, nil)
-  pushIfValid("ONY_H", DB and DB.lastOnyH,    nil,                   ONY_CD, ONY_TOLERANCE, nil)
-  pushIfValid("NEF_A", DB and DB.lastNefA,    nil,                   NEF_CD, ONY_TOLERANCE, nil)
-  pushIfValid("NEF_H", DB and DB.lastNefH,    nil,                   NEF_CD, ONY_TOLERANCE, nil)
-  pushIfValid("WB",    DB and DB.lastWB,      DB and DB.lastWBZone,  WB_CD,  WB_TOLERANCE,  nil)
-  pushIfValid("ZG",    DB and DB.lastZG,      nil,                   nil,    nil,            EVENT_MAX_AGE)
-  pushIfValid("DMF",   DB and DB.lastDMFTime, DB and DB.lastDMFZone, nil,    nil,            EVENT_MAX_AGE)
+  pushIfValid("ONY_A", DB and DB.lastOnyA, nil,               ONY_CD, ONY_TOLERANCE, nil)
+  pushIfValid("ONY_H", DB and DB.lastOnyH, nil,               ONY_CD, ONY_TOLERANCE, nil)
+  pushIfValid("NEF_A", DB and DB.lastNefA, nil,               NEF_CD, ONY_TOLERANCE, nil)
+  pushIfValid("NEF_H", DB and DB.lastNefH, nil,               NEF_CD, ONY_TOLERANCE, nil)
+  pushIfValid("WB",    DB and DB.lastWB,   DB and DB.lastWBZone,  WB_CD, WB_TOLERANCE, nil)
+  pushIfValid("ZG",    DB and DB.lastZG,   nil,               nil,    nil,            EVENT_MAX_AGE)
+  pushIfValid("DMF",   DB and DB.lastDMFTime, DB and DB.lastDMFZone, nil, nil,        EVENT_MAX_AGE)
 
-  if next(sends) == nil then return end
+  if next(sends) == nil then
+    
+    return
+  end
 
   for i, fn in ipairs(sends) do
-    local idx     = i
+    local idx    = i
     local fnLocal = fn
     ScheduleAfter((idx - 1) * 0.12, function()
       if type(fnLocal) == "function" then pcall(fnLocal) end
+      
     end)
   end
 
   ScheduleAfter(1.6, function()
     for i, fn in ipairs(sends) do
-      local idx     = i
+      local idx    = i
       local fnLocal = fn
       ScheduleAfter((idx - 1) * 0.12, function()
         if type(fnLocal) == "function" then pcall(fnLocal) end
+        
       end)
     end
   end)
@@ -292,16 +280,22 @@ end
 local function AcceptEvent(ev, ts, zone)
   local now = time()
   if not ts or ts <= 0 then return end
-  if ts < (now - 30 * 24 * 3600) then return end
-  if ts > (now + 3600) then return end
+  if ts < (now - 30 * 24 * 3600) then
+   
+    return
+  end
+  if ts > (now + 3600) then
+    
+    return
+  end
 
-  if ev == "ONY_A" then DB.lastOnyA    = ts end
-  if ev == "ONY_H" then DB.lastOnyH    = ts end
-  if ev == "NEF_A" then DB.lastNefA    = ts end
-  if ev == "NEF_H" then DB.lastNefH    = ts end
-  if ev == "ZG"    then DB.lastZG      = ts end
+  if ev == "ONY_A" then DB.lastOnyA   = ts end
+  if ev == "ONY_H" then DB.lastOnyH   = ts end
+  if ev == "NEF_A" then DB.lastNefA   = ts end
+  if ev == "NEF_H" then DB.lastNefH   = ts end
+  if ev == "ZG"    then DB.lastZG     = ts end
   if ev == "DMF"   then DB.lastDMFTime = ts; DB.lastDMFZone = zone end
-  if ev == "WB"    then DB.lastWB      = ts; DB.lastWBZone  = zone end
+  if ev == "WB"    then DB.lastWB = ts; DB.lastWBZone = zone end
 
   RH_Unconfirmed[ev] = nil
 
@@ -376,15 +370,30 @@ local function RestoreMasterVolume(percent)
 end
 
 local function TryPlayFile(path)
-  if not path or path == "" then return false end
-  if type(PlaySoundFile) ~= "function" then return false end
-  local ok = pcall(function() PlaySoundFile(path, "Master") end)
+  if not path or path == "" then
+    if DB and DB.debug then DEFAULT_CHAT_FRAME:AddMessage("[RH SOUND] TryPlayFile: no path") end
+    return false
+  end
+  if type(PlaySoundFile) ~= "function" then
+    if DB and DB.debug then DEFAULT_CHAT_FRAME:AddMessage("[RH SOUND] TryPlayFile: not available") end
+    return false
+  end
+  local ok, err = pcall(function() PlaySoundFile(path, "Master") end)
+  if DB and DB.debug then
+    DEFAULT_CHAT_FRAME:AddMessage("[RH SOUND] TryPlayFile("..tostring(path)..") -> "..tostring(ok).." "..tostring(err or ""))
+  end
   return ok
 end
 
 local function TryPlaySoundkitFor(ev)
-  if type(PlaySound) ~= "function" then return false end
-  if type(SOUNDKIT) ~= "table" then return false end
+  if type(PlaySound) ~= "function" then
+    if DB and DB.debug then DEFAULT_CHAT_FRAME:AddMessage("[RH SOUND] TryPlaySoundkitFor: PlaySound not available") end
+    return false
+  end
+  if type(SOUNDKIT) ~= "table" then
+    
+    return false
+  end
 
   local ok = false
   if (ev == "ONY_A" or ev == "NEF_A") and SOUNDKIT.RAID_WARNING then
@@ -396,16 +405,19 @@ local function TryPlaySoundkitFor(ev)
   elseif ev == "ZG" and SOUNDKIT.UI_RAID_BOSS_WHISPER then
     ok = pcall(function() PlaySound(SOUNDKIT.UI_RAID_BOSS_WHISPER) end)
   end
+
+ 
   return ok
 end
 
 local function PlayBuffSoundFor(ev)
   if not (DB and DB.rhSounds and DB.rhSounds.enabled) then return end
 
-  local file    = DB.rhSounds.files and DB.rhSounds.files[ev]
-  local desired = tonumber(DB.rhSounds.volume) or 100
-  local prev    = nil
+  local file = DB.rhSounds.files and DB.rhSounds.files[ev]
+ 
 
+  local desired = tonumber(DB.rhSounds.volume) or 100
+  local prev = nil
   if desired >= 0 and desired <= 100 then
     prev = SetMasterVolumePercent(desired)
   end
@@ -423,69 +435,49 @@ do
   local _origAccept = AcceptEvent
   AcceptEvent = function(ev, ts, zone)
     _origAccept(ev, ts, zone)
+
     local now = time()
     local detectedUntil = RH_LocalDetected[ev]
     if detectedUntil and now <= detectedUntil then
       PlayBuffSoundFor(ev)
       RH_LocalDetected[ev] = nil
+
     end
   end
 end
 
+_G.RH_DebugAcceptEvent = AcceptEvent
 _G.RH_TestPlay = function(ev) pcall(function() PlayBuffSoundFor(ev) end) end
 
 SLASH_RALLYSOUND1 = "/rallysound"
-SlashCmdList["RALLYSOUND"] = function(input)
-  local txt = input or ""
-  local cmd, arg = strmatch(txt, "^(%S*)%s*(.-)$")
-  cmd = cmd and strlower(cmd) or ""
-
-  DB.rhSounds = DB.rhSounds or {}
-  DB.rhSounds.files = DB.rhSounds.files or {}
-
+SlashCmdList["RALLYSOUND"] = function(msg)
+  local cmd, arg = msg:match("^(%S*)%s*(.-)$")
+  cmd = cmd and cmd:lower() or ""
   if cmd == "on" then
     DB.rhSounds.enabled = true
     DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Sounds enabled")
-    return
-  end
-
-  if cmd == "off" then
+  elseif cmd == "off" then
     DB.rhSounds.enabled = false
     DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Sounds disabled")
-    return
-  end
-
-  if cmd == "set" then
-    if arg and arg ~= "" then
-      local ev, path = strmatch(arg, "^(%S+)%s+(.+)$")
-      if ev and path then
-        DB.rhSounds.files[ev] = path
-        DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Set sound for "..ev)
-      else
-        DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Usage: /rallysound set <EVENT> <path>")
-      end
+  elseif cmd == "set" and arg and arg ~= "" then
+    local ev, path = arg:match("^(%S+)%s+(.+)$")
+    if ev and path and DB.rhSounds.files then
+      DB.rhSounds.files[ev] = path
+      DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Set sound for "..ev)
     else
       DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Usage: /rallysound set <EVENT> <path>")
     end
-    return
-  end
-
-  if cmd == "volume" then
-    if arg and arg ~= "" then
-      local v = tonumber(arg)
-      if v and v >= 0 and v <= 100 then
-        DB.rhSounds.volume = v
-        DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Sound volume set to "..tostring(v))
-      else
-        DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Usage: /rallysound volume <0-100>")
-      end
+  elseif cmd == "volume" and arg ~= "" then
+    local v = tonumber(arg)
+    if v and v >= 0 and v <= 100 then
+      DB.rhSounds.volume = v
+      DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Sound volume set to "..tostring(v))
     else
       DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Usage: /rallysound volume <0-100>")
     end
-    return
+  else
+    DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Commands: on, off, set <EVENT> <path>, volume <0-100>")
   end
-
-  DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Commands: on, off, set <EVENT> <path>, volume <0-100>")
 end
 
 local function InjectSoundCheckbox()
@@ -498,9 +490,8 @@ local function InjectSoundCheckbox()
   cb.text = cb:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
   cb.text:SetPoint("LEFT", cb, "RIGHT", 4, 0)
   cb.text:SetText("Play buff sounds")
-  cb:SetChecked(DB.rhSounds and DB.rhSounds.enabled)
+  cb:SetChecked(DB.rhSounds.enabled)
   cb:SetScript("OnClick", function(self)
-    DB.rhSounds = DB.rhSounds or {}
     DB.rhSounds.enabled = self:GetChecked()
   end)
 
@@ -508,9 +499,10 @@ local function InjectSoundCheckbox()
 end
 
 ScheduleAfter(0.2, InjectSoundCheckbox)
+
 SLASH_RALLYTOAST1 = "/rallytoast"
-SlashCmdList["RALLYTOAST"] = function(input)
-  local m = strlower(input or "")
+SlashCmdList["RALLYTOAST"] = function(msg)
+  local m = (msg or ""):lower()
   if m == "chat" or m == "ui" or m == "none" then
     DB.toastMode = m
     DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] toastMode set to "..m)
@@ -535,7 +527,7 @@ SlashCmdList["RALLYIGNORE"] = function(msg)
     DB.rhIgnore = DB.rhIgnore or {}
     for n, _ in pairs(DB.rhIgnore) do DEFAULT_CHAT_FRAME:AddMessage(n) end
   else
-    DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Usage: /rallyignore add|remove|list <n>")
+    DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Usage: /rallyignore add|remove|list <name>")
   end
 end
 
@@ -548,6 +540,8 @@ local function NormalizeChannelName(name)
 end
 
 local function HandleChannel(msg, channel)
+
+
   local clean = NormalizeChannelName(channel)
   if clean ~= strlower(RH_CHANNEL_NAME) then return end
   if type(msg) ~= "string" or msg == "" then return end
@@ -568,12 +562,12 @@ local function HandleChannel(msg, channel)
     return out
   end
 
-  local parts         = SplitMessage(msg)
-  local ev            = parts[1]
-  local ts            = tonumber(parts[2])
-  local sender        = parts[3]
-  local zone          = parts[4]
-  local verPart       = parts[5]
+  local parts       = SplitMessage(msg)
+  local ev          = parts[1]
+  local ts          = tonumber(parts[2])
+  local sender      = parts[3]
+  local zone        = parts[4]
+  local verPart     = parts[5]
   local senderVersion = nil
 
   if type(verPart) == "string" then
@@ -587,6 +581,7 @@ local function HandleChannel(msg, channel)
   if ts and sender then
     local offset = now - ts
     RH_ClockOffset[sender] = (RH_ClockOffset[sender] or offset) * 0.8 + offset * 0.2
+   
   end
 
   if not ev or not ts or not sender then return end
@@ -594,11 +589,17 @@ local function HandleChannel(msg, channel)
 
   RH_Users[sender] = time()
 
-  if DB and DB.rhIgnore and DB.rhIgnore[sender] then return end
+  if DB and DB.rhIgnore and DB.rhIgnore[sender] then
+    if DB and DB.debug then DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH]|r Ignoring sender "..sender) end
+    return
+  end
 
   if ev == "REQ" then
     local myName = UnitName("player") or ""
-    if sender == myName then return end
+    if sender == myName then
+      
+      return
+    end
     if type(RespondToRequest) == "function" then
       RespondToRequest()
     end
@@ -622,9 +623,12 @@ local function HandleChannel(msg, channel)
       ver    = senderVersion or 0,
     })
 
+    
+
     if not RH_TimerResponseTimers[realEv] then
       RH_TimerResponseTimers[realEv] = true
       ScheduleAfter(TIMER_RESPONSE_WINDOW, function()
+
         local now = time()
 
         local list = RH_TimerResponses[realEv] or {}
@@ -660,6 +664,9 @@ local function HandleChannel(msg, channel)
 
         if bestIdx and bestDiff and bestDiff < (7 * 24 * 3600) and bestTs > 0 then
           AcceptEvent(realEv, bestTs, bestZone)
+         
+        else
+          
         end
 
         RH_TimerResponses[realEv]      = nil
@@ -756,10 +763,10 @@ local function HandleYell(npc, msg)
 end
 
 local DMF_NPCS = {
-  ["Sayge"]                      = true,
-  ["Professor Thaddeus Paleo"]   = true,
-  ["Gelvas Grimegate"]           = true,
-  ["Stamp Thunderhorn"]          = true,
+  ["Sayge"]                    = true,
+  ["Professor Thaddeus Paleo"] = true,
+  ["Gelvas Grimegate"]         = true,
+  ["Stamp Thunderhorn"]        = true,
   ["Darkmoon Faire Mystic Mage"] = true,
 }
 
@@ -935,11 +942,7 @@ local function CreateMinimapButton()
   end)
 
   UpdatePos()
-  if DB.minimap and DB.minimap.hide == true then
-    b:Hide()
-  else
-    b:Show()
-  end
+  if DB.minimap.hide then b:Hide() else b:Show() end
 end
 
 SLASH_RALLYHELPER1 = "/rally"
@@ -961,6 +964,11 @@ SlashCmdList["RALLYHELPER"] = function(msg)
     DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] UI lock: " .. tostring(DB.locked))
   elseif msg == "users" then
     DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Users online: " .. CountUsers())
+  elseif msg == "debug" then
+    DB.debug = not DB.debug
+    DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Debug: " .. tostring(DB.debug))
+    DEFAULT_CHAT_FRAME:AddMessage("ZG: "  .. (DB.lastZG      and FormatAgo(DB.lastZG)      or "unknown"))
+    DEFAULT_CHAT_FRAME:AddMessage("DMF: " .. (DB.lastDMFTime and FormatAgo(DB.lastDMFTime) or "unknown"))
   elseif msg == "request" then
     RequestTimers()
     DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Requested timers from channel")
@@ -970,103 +978,93 @@ SlashCmdList["RALLYHELPER"] = function(msg)
 end
 
 local f = CreateFrame("Frame")
-f:RegisterEvent("ADDON_LOADED")
 f:RegisterEvent("PLAYER_LOGIN")
-f:RegisterEvent("PLAYER_ENTERING_WORLD")
-f:RegisterEvent("CHAT_MSG_ADDON")
 f:RegisterEvent("CHAT_MSG_CHANNEL")
 f:RegisterEvent("CHAT_MSG_MONSTER_YELL")
 f:RegisterEvent("GOSSIP_SHOW")
 f:RegisterEvent("QUEST_GREETING")
 f:RegisterEvent("MERCHANT_SHOW")
-local function TryEnsureUIOnce()
-  pcall(EnsureDB)
-  if type(RH_CreateUI) == "function" then
-    pcall(RH_CreateUI)
-    if RH_UIFrame and type(RH_UIFrame.Show) == "function" then
-      pcall(function() RH_UIFrame:Show() end)
-    end
-  end
-  DB = DB or RallyHelperDB or {}
-  DB.minimap = DB.minimap or { angle = 220, hide = false }
-  pcall(CreateMinimapButton)
-  if RallyHelperMinimapButton and type(RallyHelperMinimapButton.Show) == "function" then
-    if DB.minimap and DB.minimap.hide == true then
-      pcall(function() RallyHelperMinimapButton:Hide() end)
-    else
-      pcall(function() RallyHelperMinimapButton:Show() end)
+
+f:SetScript("OnEvent", function()
+  if event == "PLAYER_LOGIN" then
+  
+  local function HookRallyHelperChatFrames()
+  local nameLower = string.lower(RH_CHANNEL_NAME or "rallyhelper")
+  local n = tonumber(NUM_CHAT_WINDOWS) or 10
+  for i = 1, n do
+    local f = _G["ChatFrame"..i]
+    if f and type(f.AddMessage) == "function" and not f._rhHooked then
+      local orig = f.AddMessage
+      f.AddMessage = function(self, msg, r, g, b, id)
+        if type(msg) == "string" then
+          if string.find(string.lower(msg), nameLower, 1, true) then
+            return -- hide from player
+          end
+        end
+        return orig(self, msg, r, g, b, id)
+      end
+      f._rhHooked = true
     end
   end
 end
 
-TryEnsureUIOnce()
-ScheduleAfter(0.25, TryEnsureUIOnce)
-ScheduleAfter(0.6, TryEnsureUIOnce)
-ScheduleAfter(1.2, TryEnsureUIOnce)
+ScheduleAfter(0.5, HookRallyHelperChatFrames)
 
+  
+    if type(EnsureDB) == "function" then pcall(EnsureDB) end
 
-f:SetScript("OnEvent", function(self, event, arg1, arg2, arg3, arg4)
-  if event == "ADDON_LOADED" then
-    if arg1 == "RallyHelper" then
-      pcall(EnsureDB)
-      if type(RH_CreateUI) == "function" then
-        pcall(RH_CreateUI)
-        if RH_UIFrame and RH_UIFrame.Show then pcall(function() RH_UIFrame:Show() end) end
-      end
-      pcall(CreateMinimapButton)
-    end
-    return
-  end
-
-  if event == "PLAYER_LOGIN" then
-    pcall(EnsureDB)
     JoinChannel()
-    if type(RH_CreateUI) == "function" then
-      pcall(RH_CreateUI)
-      if RH_UIFrame and RH_UIFrame.Show then pcall(function() RH_UIFrame:Show() end) end
-    end
-    pcall(CreateMinimapButton)
-    ScheduleAfter(0.6, function()
-      if type(RH_CreateUI) == "function" then
-        pcall(RH_CreateUI)
-        if RH_UIFrame and RH_UIFrame.Show then pcall(function() RH_UIFrame:Show() end) end
+    CreateMinimapButton()
+
+    ScheduleAfter(3, function()
+      local now     = time()
+      local MAX_AGE = 7 * 24 * 3600
+      local hasValid = DB and (
+        (DB.lastOnyA    and DB.lastOnyA    > 0 and (now - DB.lastOnyA)    < MAX_AGE) or
+        (DB.lastOnyH    and DB.lastOnyH    > 0 and (now - DB.lastOnyH)    < MAX_AGE) or
+        (DB.lastNefA    and DB.lastNefA    > 0 and (now - DB.lastNefA)    < MAX_AGE) or
+        (DB.lastNefH    and DB.lastNefH    > 0 and (now - DB.lastNefH)    < MAX_AGE) or
+        (DB.lastZG      and DB.lastZG      > 0 and (now - DB.lastZG)      < MAX_AGE) or
+        (DB.lastWB      and DB.lastWB      > 0 and (now - DB.lastWB)      < MAX_AGE) or
+        (DB.lastDMFTime and DB.lastDMFTime > 0 and (now - DB.lastDMFTime) < MAX_AGE)
+      )
+
+      if not hasValid then
+        RequestTimers()
+        
+      else
+       
       end
-      pcall(CreateMinimapButton)
     end)
-    return
-  end
-  if event == "PLAYER_ENTERING_WORLD" then
-    pcall(EnsureDB)
-    if type(RH_CreateUI) == "function" then
-      pcall(RH_CreateUI)
-      if RH_UIFrame and RH_UIFrame.Show then pcall(function() RH_UIFrame:Show() end) end
-    end
-    pcall(CreateMinimapButton)
-    return
-  end
-  if event == "CHAT_MSG_ADDON" then
-    local prefix  = arg1
-    local message = arg2
-    local channel = arg3
-    local sender  = arg4
-    if prefix == RH_ADDON_PREFIX and type(message) == "string" then
-      if DB and DB.showRawInChat then
-        DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper RAW] " .. tostring(message))
+
+    if type(RH_CreateUI) == "function" then RH_CreateUI() end
+
+    if RH_UIFrame and RH_UIFrame.Show then RH_UIFrame:Show() end
+
+    Delay(0.1, function()
+      if RH_UIFrame and RH_UIFrame.Show then RH_UIFrame:Show() end
+      if RallyHelperMinimapButton and RallyHelperMinimapButton.Show then
+        RallyHelperMinimapButton:Show()
       end
-      HandleChannel(message, tostring(channel or ""))
-    end
-    return
-  end
-  if event == "CHAT_MSG_CHANNEL" then
-    HandleChannel(arg1, arg4)
-    return
-  end
-  if event == "CHAT_MSG_MONSTER_YELL" then
+    end)
+
+  elseif event == "CHAT_MSG_CHANNEL" then
+    HandleChannel(arg1, arg9)
+
+  elseif event == "CHAT_MSG_MONSTER_YELL" then
     HandleYell(arg2, arg1)
-    return
-  end
-  if event == "GOSSIP_SHOW" or event == "QUEST_GREETING" or event == "MERCHANT_SHOW" then
+
+  elseif event == "GOSSIP_SHOW" or event == "QUEST_GREETING" or event == "MERCHANT_SHOW" then
     TryDMF()
-    return
   end
 end)
+
+local orig_AddMessage = ChatFrame1.AddMessage
+
+ChatFrame1.AddMessage = function(self, msg, r, g, b, id)
+  if type(msg) == "string" and string.find(string.lower(msg), string.lower(RH_CHANNEL_NAME)) then
+    return
+  end
+
+  return orig_AddMessage(self, msg, r, g, b, id)
+end
