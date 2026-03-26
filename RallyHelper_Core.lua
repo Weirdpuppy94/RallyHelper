@@ -405,9 +405,11 @@ end
 _G.RH_TestPlay = function(ev) pcall(function() PlayBuffSoundFor(ev) end) end
 
 SLASH_RALLYSOUND1 = "/rallysound"
-SlashCmdList["RALLYSOUND"] = function(msg)
+SlashCmdList["RALLYSOUND"] = function(input)
+  local msg = input or ""
   local cmd, arg = msg:match("^(%S*)%s*(.-)$")
   cmd = cmd and cmd:lower() or ""
+
   if cmd == "on" then
     DB.rhSounds.enabled = true
     DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Sounds enabled")
@@ -435,6 +437,7 @@ SlashCmdList["RALLYSOUND"] = function(msg)
   end
 end
 
+
 local function InjectSoundCheckbox()
   if not DB then return end
   if not RH_UIFrame or not RH_UIFrame.CreateFontString then return end
@@ -456,8 +459,8 @@ end
 ScheduleAfter(0.2, InjectSoundCheckbox)
 
 SLASH_RALLYTOAST1 = "/rallytoast"
-SlashCmdList["RALLYTOAST"] = function(msg)
-  local m = (msg or ""):lower()
+SlashCmdList["RALLYTOAST"] = function(input)
+  local m = (input or ""):lower()
   if m == "chat" or m == "ui" or m == "none" then
     DB.toastMode = m
     DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] toastMode set to "..m)
