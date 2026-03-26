@@ -371,23 +371,18 @@ end
 
 local function TryPlayFile(path)
   if not path or path == "" then
-    if DB and DB.debug then DEFAULT_CHAT_FRAME:AddMessage("[RH SOUND] TryPlayFile: no path") end
     return false
   end
   if type(PlaySoundFile) ~= "function" then
-    if DB and DB.debug then DEFAULT_CHAT_FRAME:AddMessage("[RH SOUND] TryPlayFile: not available") end
     return false
   end
   local ok, err = pcall(function() PlaySoundFile(path, "Master") end)
-  if DB and DB.debug then
-    DEFAULT_CHAT_FRAME:AddMessage("[RH SOUND] TryPlayFile("..tostring(path)..") -> "..tostring(ok).." "..tostring(err or ""))
-  end
+  
   return ok
 end
 
 local function TryPlaySoundkitFor(ev)
   if type(PlaySound) ~= "function" then
-    if DB and DB.debug then DEFAULT_CHAT_FRAME:AddMessage("[RH SOUND] TryPlaySoundkitFor: PlaySound not available") end
     return false
   end
   if type(SOUNDKIT) ~= "table" then
@@ -1029,12 +1024,8 @@ ScheduleAfter(0.5, HookRallyHelperChatFrames)
         (DB.lastDMFTime and DB.lastDMFTime > 0 and (now - DB.lastDMFTime) < MAX_AGE)
       )
 
-      if not hasValid then
         RequestTimers()
-        
-      else
-       
-      end
+
     end)
 
     if type(RH_CreateUI) == "function" then RH_CreateUI() end
