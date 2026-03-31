@@ -1,29 +1,72 @@
+#  **RallyHelper** — Modern World Buff Tracker for Turtle WoW
+
 <img width="640" height="640" alt="RallyLogo" src="https://github.com/user-attachments/assets/d3519b5c-a137-4a76-ac6e-d33b8a07fffd" />
 
-**RallyHelper** is a lightweight, modern and reliable world buff tracker for Turtle WoW.  
+**RallyHelper** is a lightweight, modern, and reliable world buff tracker for Turtle WoW.  
 It focuses on **accuracy**, **verification**, and **zero spam**, making it a clean alternative to older addons like PizzaWorldBuffs.
+
+Version **1.4.0** introduces a completely redesigned UI, improved synchronization, and a new settings system.
 
 ---
 
-## ✨ Key features
+## ✨ Key Features
 
-- **Verified world buff detection**  
-  Only accepts world buff events after verification by multiple RallyHelper users to prevent fake timers, manipulated timestamps and false positives.
+### **✔ Verified world buff detection**
+RallyHelper accepts buff events only after verification.  
+The default requirement is **2 independent sources**, but **1‑source mode is temporarily enabled** in 1.4.0 to improve responsiveness during low‑population hours.
 
-- **Unconfirmed Buffs**  
-  Shows preliminary timers when a single source reports a buff, marked as `unconfirmed (12s ago)` so new users can see the addon working before full verification.
+### **✔ Unconfirmed Buffs**
+If only one source reports a buff, RallyHelper shows it as:
 
-- **Zero channel spam**  
-  Sends only real events — no heartbeats, version checks, periodic updates or debug spam.
+```
+unconfirmed (12s ago)
+```
 
-- **Anonymous user count**  
-  `/rally users` shows how many RallyHelper users were active in the last 60 seconds (anonymous).
+This helps new users see activity even before full verification.
 
-- **DMF detection**  
-  Automatically detects Darkmoon Faire NPCs and records the last seen location.
+### **✔ Zero channel spam**
+RallyHelper sends **only real events**:
+- No heartbeats  
+- No periodic updates  
+- No version spam  
+- No debug noise  
 
-- **Minimal, resizable UI**  
-  Clean UI with optional pfUI skin compatibility.
+Just clean, minimal communication.
+
+### **✔ Anonymous user count**
+`/rally users` shows how many RallyHelper users were active in the last 60 seconds — anonymously.
+
+### **✔ DMF detection**
+Automatically detects Darkmoon Faire NPCs and records the last seen zone.
+
+### **✔ New UI (1.4.0)**
+- Fully redesigned layout  
+- Faction‑colored sections  
+- Icons for Ony/Nef/ZG/DMF/WB  
+- Auto‑refresh every 0.4s  
+- Resizable, scalable, draggable  
+- pfUI‑compatible
+
+### **✔ New Settings Window (1.4.0)**
+- Faction filter (Horde / Alliance / Both)  
+- UI width, height, scale  
+- Lock UI  
+- Buff sound toggle  
+- Clean dialog‑style interface
+
+### **✔ New Unconfirmed Window (1.4.0)**
+- Scrollable list  
+- Filters for Horde / Alliance / ZG / Warchief  
+- Shows timestamp, zone, and source count  
+- Helps diagnose incomplete confirmations
+
+### **✔ Improved minimap button**
+- Left‑click → toggle UI  
+- Alt‑click → settings  
+- Shift‑click → share timers  
+- Middle‑click → unconfirmed  
+- Right‑click → status  
+- Alt‑drag → reposition
 
 ---
 
@@ -36,63 +79,68 @@ It focuses on **accuracy**, **verification**, and **zero spam**, making it a cle
 
 ---
 
-## 🧭 Quick commands
+## 🧭 Quick Commands
 
 All commands start with:
 
+```
 /rally
+```
 
+### **Core**
+- `/rally` — Toggle the main UI  
+- `/rally status` — Print current timers  
+- `/rally share` — Insert timers into chat edit box  
+- `/rally request` — Request timers from other users  
+- `/rally users` — Show number of active RallyHelper users  
+- `/rally debug` — Toggle debug mode  
 
-**Core**
-- `/rally` — Toggle the main UI.  
-- `/rally status` — Print current timers to chat.  
-- `/rally share` — Insert your timers into the chat edit box for manual posting.  
-- `/rally request` — Request timers from other RallyHelper users.  
-- `/rally users` — Show number of active RallyHelper users (anonymous).
+### **UI**
+- `/rally lock` — Lock/unlock UI movement  
+- `/rally reset` — Reset UI position and size  
+- `/rally settings` — Open settings window  
 
-**UI**
-- `/rally lock` — Toggle UI lock (lock/unlock movement).  
-- `/rally reset` — Reset UI position and size.  
-- `/rally debug` — Toggle debug output (for troubleshooting).
+### **Sound & notifications**
+- `/rallysound on|off` — Enable/disable buff sounds  
+- `/rallysound set <EVENT> <path>` — Custom sound file  
+- `/rallysound volume <0-100>` — Set volume  
+- `/rallytoast chat|ui|none` — Choose confirmation display  
 
-**Sound & notifications**
-- `/rallysound on|off` — Enable/disable buff sounds.  
-- `/rallysound set <EVENT> <path>` — Set a custom sound file for an event.  
-- `/rallysound volume <0-100>` — Set playback volume percent.  
-- `/rallytoast chat|ui|none` — Choose how confirmations are shown (chat, UI toast, or none).
-
-**Ignore**
-- `/rallyignore add|remove|list <name>` — Temporarily ignore noisy or buggy senders.
+### **Ignore**
+- `/rallyignore add|remove|list <name>` — Ignore noisy senders  
 
 ---
 
-## 📷 Screenshot
+## 📷 Screenshots
+
+<img width="577" height="223" alt="new-UI" src="https://github.com/user-attachments/assets/ea17a747-a63b-44df-b019-3360719dfa4a" />
+
+![Settings](https://github.com/user-attachments/assets/b092ca3e-c64e-4c23-b5dd-428e304e5181)
 
 
-![Screenshot RallyHelper](https://github.com/user-attachments/assets/3b09776f-a457-496e-91e1-aee7f5766dcb)
-
-
-> Tip: store images in `assets/` and reference them with relative paths so they render correctly on GitHub.
 
 ---
 
 ## 🧾 Changelog & Releases
 
-Full changelog is maintained in `CHANGELOG.md`. See the latest release notes on the GitHub Releases page.
+Full changelog is available in **CHANGELOG.md**.  
+See GitHub Releases for version history and downloads.
 
 ---
 
-## ⚠️ Known incompatibility
+## ⚠️ Known Incompatibility
 
-**LazyPig** has been reported to interfere with RallyHelper (modifies global string functions and chat handlers). If sync fails, try disabling LazyPig.
+**LazyPig** modifies global string functions and chat handlers.  
+If RallyHelper fails to sync or parse messages, try disabling LazyPig.
 
 ---
 
 ## ❤️ Support
 
-RallyHelper is a free community addon. If you want to support development:
+RallyHelper is a free community addon.  
+If you want to support development:
 
-https://ko-fi.com/weirdpuyppy94
+[https://ko-fi.com/weirdpuyppy94](https://ko-fi.com/weirdpuyppy94)
 
 Support is optional and does not affect features or updates.
 
@@ -100,4 +148,4 @@ Support is optional and does not affect features or updates.
 
 ## 📜 License
 
-MIT License — free to use, modify and share.
+MIT License — free to use, modify, and share.
