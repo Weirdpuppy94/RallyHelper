@@ -1,9 +1,8 @@
--- Version: 1.3.9
-
+-- RallyHelper_Core v 1.4.0
 
 local RH_CHANNEL_NAME    = "RallyHelper"
 local RH_VERIFY_WINDOW   = 30
-local RH_VERIFY_REQUIRED = 2
+local RH_VERIFY_REQUIRED = 1
 local RH_VERIFY_REQUIRED_REQUEST = 5
 local RH_SEND_THROTTLE   = 20
 
@@ -13,10 +12,12 @@ local WB_CD  = 3 * 60 * 60
 local WB_WARN_DELAY = 6
 
 local DB_VERSION = 2
+local CHAR_DB_VERSION = 1
 local ADDON_VERSION = 2
 local MIN_ACCEPTED_VERSION = 2
 
 local DB
+local CharDB
 local verify = {}
 local RH_Users = {}
 local lastSend = {}
@@ -69,6 +70,57 @@ local function EnsureDB()
   DB.rhIgnore  = DB.rhIgnore or {}
   DB.debug = DB.debug or false
 end
+
+local function EnsureCharDB()
+  CharDB = RallyHelperCharDB or {}
+  RallyHelperCharDB = CharDB
+
+  CharDB.version = CharDB.version or 0
+  if CharDB.version < CHAR_DB_VERSION then
+    CharDB.version = CHAR_DB_VERSION
+  end
+
+  CharDB.factionFilter = CharDB.factionFilter or nil
+  CharDB.ui = CharDB.ui or {}
+  CharDB.locked = (CharDB.locked == nil) and false or CharDB.locked
+end
+
+local function GetFactionFilter()
+  if not CharDB then return "BOTH" end
+  return CharDB.factionFilter or "BOTH"
+end
+
+local function SetFactionFilter(faction)
+  if not CharDB then return end
+  if faction == "HORDE" or faction == "ALLIANCE" or faction == "BOTH" then
+    CharDB.factionFilter = faction
+    if type(RallyHelper_UpdateUI) == "function" then
+      RallyHelper_UpdateUI()
+    end
+  end
+end
+
+_G.RH_GetFactionFilter = GetFactionFilter
+_G.RH_SetFactionFilter = SetFactionFilter
+
+local function ShouldShowEvent(ev)
+  local filter = GetFactionFilter()
+  if filter == "BOTH" then return true end
+  
+  if filter == "HORDE" then
+    if ev == "ONY_A" or ev == "NEF_A" then return false end
+    return true
+  end
+  
+  if filter == "ALLIANCE" then
+    if ev == "ONY_H" or ev == "NEF_H" or ev == "WB" then return false end
+    return true
+  end
+  
+  return true
+end
+
+_G.RH_ShouldShowEvent = ShouldShowEvent
 
 local function SanitizeChat(msg)
   if not msg then return "" end
@@ -183,12 +235,10 @@ function RespondToRequest()
     if cooldown and type(cooldown) == "number" then
       local allowed = cooldown + (tolerance or 0)
       if age > allowed then
-        
         return
       end
     else
       if eventMaxAge and age > eventMaxAge then
-        
         return
       end
     end
@@ -204,7 +254,6 @@ function RespondToRequest()
   pushIfValid("DMF",   DB and DB.lastDMFTime, DB and DB.lastDMFZone, nil, nil,        EVENT_MAX_AGE)
 
   if next(sends) == nil then
-    
     return
   end
 
@@ -213,7 +262,6 @@ function RespondToRequest()
     local fnLocal = fn
     ScheduleAfter((idx - 1) * 0.12, function()
       if type(fnLocal) == "function" then pcall(fnLocal) end
-      
     end)
   end
 
@@ -223,7 +271,6 @@ function RespondToRequest()
       local fnLocal = fn
       ScheduleAfter((idx - 1) * 0.12, function()
         if type(fnLocal) == "function" then pcall(fnLocal) end
-        
       end)
     end
   end)
@@ -281,11 +328,9 @@ local function AcceptEvent(ev, ts, zone)
   local now = time()
   if not ts or ts <= 0 then return end
   if ts < (now - 30 * 24 * 3600) then
-   
     return
   end
   if ts > (now + 3600) then
-    
     return
   end
 
@@ -377,7 +422,6 @@ local function TryPlayFile(path)
     return false
   end
   local ok, err = pcall(function() PlaySoundFile(path, "Master") end)
-  
   return ok
 end
 
@@ -386,7 +430,6 @@ local function TryPlaySoundkitFor(ev)
     return false
   end
   if type(SOUNDKIT) ~= "table" then
-    
     return false
   end
 
@@ -401,7 +444,6 @@ local function TryPlaySoundkitFor(ev)
     ok = pcall(function() PlaySound(SOUNDKIT.UI_RAID_BOSS_WHISPER) end)
   end
 
- 
   return ok
 end
 
@@ -409,7 +451,6 @@ local function PlayBuffSoundFor(ev)
   if not (DB and DB.rhSounds and DB.rhSounds.enabled) then return end
 
   local file = DB.rhSounds.files and DB.rhSounds.files[ev]
- 
 
   local desired = tonumber(DB.rhSounds.volume) or 100
   local prev = nil
@@ -436,7 +477,6 @@ do
     if detectedUntil and now <= detectedUntil then
       PlayBuffSoundFor(ev)
       RH_LocalDetected[ev] = nil
-
     end
   end
 end
@@ -474,26 +514,6 @@ SlashCmdList["RALLYSOUND"] = function(msg)
     DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Commands: on, off, set <EVENT> <path>, volume <0-100>")
   end
 end
-
-local function InjectSoundCheckbox()
-  if not DB then return end
-  if not RH_UIFrame or not RH_UIFrame.CreateFontString then return end
-  if RH_UIFrame._rhSoundCheckboxCreated then return end
-
-  local cb = CreateFrame("CheckButton", "RallyHelperSoundCheckbox", RH_UIFrame, "UICheckButtonTemplate")
-  cb:SetPoint("TOPLEFT", RH_UIFrame, "TOPLEFT", 12, -36)
-  cb.text = cb:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-  cb.text:SetPoint("LEFT", cb, "RIGHT", 4, 0)
-  cb.text:SetText("Play buff sounds")
-  cb:SetChecked(DB.rhSounds.enabled)
-  cb:SetScript("OnClick", function(self)
-    DB.rhSounds.enabled = self:GetChecked()
-  end)
-
-  RH_UIFrame._rhSoundCheckboxCreated = true
-end
-
-ScheduleAfter(0.2, InjectSoundCheckbox)
 
 SLASH_RALLYTOAST1 = "/rallytoast"
 SlashCmdList["RALLYTOAST"] = function(msg)
@@ -535,8 +555,6 @@ local function NormalizeChannelName(name)
 end
 
 local function HandleChannel(msg, channel)
-
-
   local clean = NormalizeChannelName(channel)
   if clean ~= strlower(RH_CHANNEL_NAME) then return end
   if type(msg) ~= "string" or msg == "" then return end
@@ -576,7 +594,6 @@ local function HandleChannel(msg, channel)
   if ts and sender then
     local offset = now - ts
     RH_ClockOffset[sender] = (RH_ClockOffset[sender] or offset) * 0.8 + offset * 0.2
-   
   end
 
   if not ev or not ts or not sender then return end
@@ -592,7 +609,6 @@ local function HandleChannel(msg, channel)
   if ev == "REQ" then
     local myName = UnitName("player") or ""
     if sender == myName then
-      
       return
     end
     if type(RespondToRequest) == "function" then
@@ -617,8 +633,6 @@ local function HandleChannel(msg, channel)
       zone   = zone,
       ver    = senderVersion or 0,
     })
-
-    
 
     if not RH_TimerResponseTimers[realEv] then
       RH_TimerResponseTimers[realEv] = true
@@ -659,9 +673,7 @@ local function HandleChannel(msg, channel)
 
         if bestIdx and bestDiff and bestDiff < (7 * 24 * 3600) and bestTs > 0 then
           AcceptEvent(realEv, bestTs, bestZone)
-         
         else
-          
         end
 
         RH_TimerResponses[realEv]      = nil
@@ -882,10 +894,9 @@ local function CreateMinimapButton()
     GameTooltip:SetOwner(b, "ANCHOR_LEFT")
     GameTooltip:AddLine("RallyHelper")
     GameTooltip:AddLine("Left Click: Toggle UI")
+	GameTooltip:AddLine("Alt + Click: Settings")
     GameTooltip:AddLine("Right Click: Status")
     GameTooltip:AddLine("Shift + Left: Share timers")
-    GameTooltip:AddLine("Alt + Click: Size window")
-    GameTooltip:AddLine("Alt + Drag: Move icon")
     GameTooltip:AddLine("Middle Mouse: Unconfirmed Buffs")
     GameTooltip:Show()
   end)
@@ -926,7 +937,7 @@ local function CreateMinimapButton()
     end
     if IsAltKeyDown() then
       if b.didDrag then b.didDrag = false; return end
-      RallyHelper_ToggleSizeUI()
+      RallyHelper_ToggleSettings()
       return
     end
     if IsShiftKeyDown() then
@@ -950,13 +961,14 @@ SlashCmdList["RALLYHELPER"] = function(msg)
     ShareTimersToChat()
   elseif msg == "reset" then
     DB.ui = nil
+    CharDB.ui = nil
     ReloadUI()
   elseif msg == "toast" then
     DB.toast = not DB.toast
     DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Toast messages: " .. tostring(DB.toast))
   elseif msg == "lock" then
-    DB.locked = not DB.locked
-    DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] UI lock: " .. tostring(DB.locked))
+    CharDB.locked = not CharDB.locked
+    DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] UI lock: " .. tostring(CharDB.locked))
   elseif msg == "users" then
     DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Users online: " .. CountUsers())
   elseif msg == "debug" then
@@ -967,6 +979,8 @@ SlashCmdList["RALLYHELPER"] = function(msg)
   elseif msg == "request" then
     RequestTimers()
     DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Requested timers from channel")
+  elseif msg == "settings" or msg == "config" or msg == "options" then
+    RallyHelper_ToggleSettings()
   else
     RallyHelper_ToggleUI()
   end
@@ -1005,8 +1019,8 @@ end
 
 ScheduleAfter(0.5, HookRallyHelperChatFrames)
 
-  
     if type(EnsureDB) == "function" then pcall(EnsureDB) end
+    if type(EnsureCharDB) == "function" then pcall(EnsureCharDB) end
 
     JoinChannel()
     CreateMinimapButton()
@@ -1025,10 +1039,17 @@ ScheduleAfter(0.5, HookRallyHelperChatFrames)
       )
 
         RequestTimers()
-
     end)
 
     if type(RH_CreateUI) == "function" then RH_CreateUI() end
+
+    if CharDB and CharDB.factionFilter == nil then
+      ScheduleAfter(2, function()
+        if type(RallyHelper_ShowFirstTimeSetup) == "function" then
+          RallyHelper_ShowFirstTimeSetup()
+        end
+      end)
+    end
 
     if RH_UIFrame and RH_UIFrame.Show then RH_UIFrame:Show() end
 
