@@ -1,4 +1,4 @@
--- RallyHelper_Core v 1.4.0
+-- RallyHelper_Core v 1.4.0 (Hotfix)
 
 local RH_CHANNEL_NAME    = "RallyHelper"
 local RH_VERIFY_WINDOW   = 30
@@ -997,25 +997,22 @@ f:RegisterEvent("MERCHANT_SHOW")
 f:SetScript("OnEvent", function()
   if event == "PLAYER_LOGIN" then
   
-  local function HookRallyHelperChatFrames()
-  local nameLower = string.lower(RH_CHANNEL_NAME or "rallyhelper")
-  local n = tonumber(NUM_CHAT_WINDOWS) or 10
-  for i = 1, n do
-    local f = _G["ChatFrame"..i]
-    if f and type(f.AddMessage) == "function" and not f._rhHooked then
-      local orig = f.AddMessage
-      f.AddMessage = function(self, msg, r, g, b, id)
-        if type(msg) == "string" then
-          if string.find(string.lower(msg), nameLower, 1, true) then
-            return
-          end
-        end
-        return orig(self, msg, r, g, b, id)
-      end
-      f._rhHooked = true
+local function RH_RemoveChannelFromChatFrames()
+  local name = RH_CHANNEL_NAME or "RallyHelper"
+  local max = tonumber(NUM_CHAT_WINDOWS) or 10
+  local i = 1
+
+  while i <= max do
+    local cf = _G["ChatFrame"..i]
+    if cf and cf.RemoveChannel then
+      pcall(function()
+        cf:RemoveChannel(name)
+      end)
     end
+    i = i + 1
   end
 end
+
 
 ScheduleAfter(0.5, HookRallyHelperChatFrames)
 
