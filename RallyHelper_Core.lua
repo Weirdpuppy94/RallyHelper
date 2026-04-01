@@ -1,4 +1,4 @@
--- RallyHelper_Core v 1.4.0 (Hotfix)
+ RallyHelper_Core v 1.4.1 
 
 local RH_CHANNEL_NAME    = "RallyHelper"
 local RH_VERIFY_WINDOW   = 30
@@ -66,7 +66,7 @@ local function EnsureDB()
     WB    = "Sound\\Interface\\PVPFlagTakenHordeMono.wav",
     ZG    = "Sound\\Interface\\PVPFlagTakenHordeMono.wav",
   }
-  DB.toastMode = DB.toastMode or "none"  -- "chat" | "ui" | "none"
+  DB.toastMode = DB.toastMode or "none"   "chat" | "ui" | "none"
   DB.rhIgnore  = DB.rhIgnore or {}
   DB.debug = DB.debug or false
 end
