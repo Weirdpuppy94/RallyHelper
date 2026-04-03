@@ -1,4 +1,4 @@
--- RallyHelper_UI v 1.4.1 UI-Polish
+-- RallyHelper_UI v 1.4.2
 RHGlobal = RHGlobal or {}
 RHGlobal.Unconfirmed = RHGlobal.Unconfirmed or {}
 
