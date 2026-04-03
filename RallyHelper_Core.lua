@@ -1,4 +1,4 @@
--- RallyHelper_Core v 1.4.1 
+-- RallyHelper_Core v 1.4.2
 
 local RH_CHANNEL_NAME    = "RallyHelper"
 local RH_VERIFY_WINDOW   = 30
@@ -286,6 +286,30 @@ local function Prune(list)
   end
 end
 
+local function IsSuspicious(ev, ts)
+  local now = time()
+
+  if ev == "ONY_A" or ev == "ONY_H" or ev == "NEF_A" or ev == "NEF_H" or ev == "WB" then
+    local last = nil
+    if ev == "ONY_A" then last = DB and DB.lastOnyA end
+    if ev == "ONY_H" then last = DB and DB.lastOnyH end
+    if ev == "NEF_A" then last = DB and DB.lastNefA end
+    if ev == "NEF_H" then last = DB and DB.lastNefH end
+    if ev == "WB"    then last = DB and DB.lastWB   end
+
+    if last and ts and ts > last + 300 then
+      return true
+    end
+  end
+
+  if (ev == "ZG" or ev == "DMF") and ts and ts > now + 3600 then
+    return true
+  end
+
+  return false
+end
+
+
 local function VerifyEvent(ev, ts, sender, zone, required)
   required = required or RH_VERIFY_REQUIRED
 
@@ -333,7 +357,7 @@ local function AcceptEvent(ev, ts, zone)
   if ts > (now + 3600) then
     return
   end
-
+  
   if ev == "ONY_A" then DB.lastOnyA   = ts end
   if ev == "ONY_H" then DB.lastOnyH   = ts end
   if ev == "NEF_A" then DB.lastNefA   = ts end
@@ -672,7 +696,14 @@ local function HandleChannel(msg, channel)
         end
 
         if bestIdx and bestDiff and bestDiff < (7 * 24 * 3600) and bestTs > 0 then
-          AcceptEvent(realEv, bestTs, bestZone)
+          if not IsSuspicious(realEv, bestTs) then
+  AcceptEvent(realEv, bestTs, bestZone)
+else
+  if DB and DB.debug then
+    DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH]|r Ignored suspicious timer for "..tostring(realEv).." ("..tostring(bestTs)..")")
+  end
+end
+
         else
         end
 
@@ -683,15 +714,28 @@ local function HandleChannel(msg, channel)
     return
   end
 
-  if ev == "ZG" then
+if ev == "ZG" then
+  if not IsSuspicious(ev, ts) then
     AcceptEvent(ev, ts, zone)
-    return
+  else
+    if DB and DB.debug then
+      DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH]|r Ignored suspicious ZG for "..tostring(sender).." ("..tostring(ts)..")")
+    end
   end
+  return
+end
 
-  if ev == "DMF" then
+if ev == "DMF" then
+  if not IsSuspicious(ev, ts) then
     AcceptEvent(ev, ts, zone)
-    return
+  else
+    if DB and DB.debug then
+      DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH]|r Ignored suspicious DMF for "..tostring(sender).." ("..tostring(ts)..")")
+    end
   end
+  return
+end
+
 
   local required = RH_VERIFY_REQUIRED
   local ok, bestTs, bestZone = VerifyEvent(ev, ts, sender, zone, required)
@@ -820,11 +864,66 @@ function PrintStatus()
 end
 
 function RallyHelper_InsertToChat(text)
-  if not ChatFrameEditBox:IsShown() then
+  local function safeInsert(box, t)
+    if not box then return false end
+    local ok, err = pcall(function()
+      if type(box.Insert) == "function" then
+        box:Insert(t or "")
+      elseif type(box.SetText) == "function" then
+        box:SetText(t or "")
+      end
+    end)
+    return ok
+  end
+
+  local editBox = nil
+
+  if type(ChatEdit_ChooseBoxForSend) == "function" then
+    editBox = ChatEdit_ChooseBoxForSend()
+  end
+
+  if not editBox then
+    editBox = (DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.editBox) or _G.ChatFrame1EditBox
+  end
+
+  if not editBox then
+    for i = 1, 10 do
+      local name = "ChatFrame"..i.."EditBox"
+      if _G[name] then
+        editBox = _G[name]
+        break
+      end
+    end
+  end
+
+  if not editBox and type(ChatFrame_OpenChat) == "function" then
+    ChatFrame_OpenChat("")
+    if type(ChatEdit_ChooseBoxForSend) == "function" then
+      editBox = ChatEdit_ChooseBoxForSend()
+    else
+      editBox = (DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.editBox) or _G.ChatFrame1EditBox
+    end
+  end
+
+  if not editBox then
+    if DEFAULT_CHAT_FRAME then
+      DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RallyHelper]|r Could not access chat edit box. Share aborted.")
+    end
+    return
+  end
+
+  if not editBox:IsShown() and type(ChatFrame_OpenChat) == "function" then
     ChatFrame_OpenChat("")
   end
-  ChatFrameEditBox:Insert(text)
+
+  if not safeInsert(editBox, text) then
+    if DEFAULT_CHAT_FRAME then
+      DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RallyHelper]|r Failed to insert text into chat edit box.")
+    end
+  end
 end
+
+
 
 function ShareTimersToChat()
   local now = time()
