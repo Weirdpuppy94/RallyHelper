@@ -1,4 +1,4 @@
--- RallyHelper_UI v 1.4.2
+-- RallyHelper_UI v 1.4.3
 RHGlobal = RHGlobal or {}
 RHGlobal.Unconfirmed = RHGlobal.Unconfirmed or {}
 
@@ -408,7 +408,7 @@ function CreateFirstTimeSetup()
     "Please select which world buffs you want to track:\n\n" ..
     "|cff33ff99Horde|r: Onyxia, Nefarian, Warchief's Blessing, ZG, DMF\n" ..
     "|cff3399ffAlliance|r: Onyxia, Nefarian, ZG, DMF\n" ..
-    "|cffffffBoth|r: All buffs from both factions\n\n" ..
+    "|cffffffffBoth|r: All buffs from both factions\n\n" ..
     "You can change this later with /rally settings"
   )
 
