@@ -1,16 +1,14 @@
--- RallyHelper_Core v 1.4.2
+-- RallyHelper_Core v 1.4.3
 
-local RH_CHANNEL_NAME    = "RallyHelper"
-local RH_VERIFY_WINDOW   = 30
+local RH_CHANNEL_NAME = "RallyHelper"
+local RH_VERIFY_WINDOW = 30
 local RH_VERIFY_REQUIRED = 1
 local RH_VERIFY_REQUIRED_REQUEST = 5
-local RH_SEND_THROTTLE   = 20
-
+local RH_SEND_THROTTLE = 20
 local ONY_CD = 2 * 60 * 60
 local NEF_CD = 2 * 60 * 60
-local WB_CD  = 3 * 60 * 60
+local WB_CD = 3 * 60 * 60
 local WB_WARN_DELAY = 6
-
 local DB_VERSION = 2
 local CHAR_DB_VERSION = 1
 local ADDON_VERSION = 2
@@ -26,12 +24,11 @@ local LOCAL_DETECT_WINDOW = 2.0
 
 local str = _G.string or string
 local strmatch = str.match or function() return nil end
-local strfind  = str.find  or function() return nil end
+local strfind = str.find or function() return nil end
 local strlower = str.lower or function(s) return s end
-local strsub   = str.sub   or function(s, i, j) return s end
-local strlen   = str.len   or function(s) return 0 end
-local strgsub  = str.gsub  or function(s) return s end
-
+local strsub = str.sub or function(s, i, j) return s end
+local strlen = str.len or function(s) return 0 end
+local strgsub = str.gsub or function(s) return s end
 local floor = math.floor
 
 RHGlobal = RHGlobal or {}
@@ -66,7 +63,7 @@ local function EnsureDB()
     WB    = "Sound\\Interface\\PVPFlagTakenHordeMono.wav",
     ZG    = "Sound\\Interface\\PVPFlagTakenHordeMono.wav",
   }
-  DB.toastMode = DB.toastMode or "none"  -- "chat" | "ui" | "none"
+  DB.toastMode = DB.toastMode or "none"
   DB.rhIgnore  = DB.rhIgnore or {}
   DB.debug = DB.debug or false
 end
@@ -132,8 +129,8 @@ end
 local function FormatAgo(ts)
   if not ts then return "unknown" end
   local d = time() - ts
-  if d < 60    then return d .. "s ago" end
-  if d < 3600  then return floor(d / 60) .. "m ago" end
+  if d < 60 then return d .. "s ago" end
+  if d < 3600 then return floor(d / 60) .. "m ago" end
   local h = floor(d / 3600)
   local m = floor((d - h * 3600) / 60)
   return h .. "h " .. m .. "m ago"
@@ -194,18 +191,28 @@ local function SendEvent(ev, zone, ts)
   local player = UnitName("player") or "?"
   local sep = "^"
   ts = ts or time()
+
   local msg = ev .. sep .. tostring(ts) .. sep .. player
+
   if zone and zone ~= "" then
+    zone = strgsub(zone, "|", " ")
     msg = msg .. sep .. zone
   end
+
   msg = msg .. sep .. "v" .. tostring(ADDON_VERSION)
 
+  msg = strgsub(msg, "|c%x%x%x%x%x%x%x%x", "")
+  msg = strgsub(msg, "|r", "")
+  msg = strgsub(msg, "|", "")
+  msg = strgsub(msg, "\\", "")
+  msg = strgsub(msg, "%%", "")
+  msg = strgsub(msg, "%[", "")
+  msg = strgsub(msg, "%]", "")
 
   pcall(function()
-    SendChatMessage(SanitizeChat(msg), "CHANNEL", nil, cid)
+    SendChatMessage(msg, "CHANNEL", nil, cid)
   end)
 end
-
 
 local function ScheduleAfter(sec, fn)
   if type(C_Timer) == "table" and type(C_Timer.After) == "function" then
@@ -215,18 +222,16 @@ local function ScheduleAfter(sec, fn)
   end
 end
 
-
 function RespondToRequest()
   EnsureChannel()
   if not CanSend("TIMER_REQ") then return end
 
   local now = time()
+  local ONY_TOLERANCE = 30 * 60
+  local WB_TOLERANCE  = 6 * 3600
+  local EVENT_MAX_AGE = 24 * 3600
 
-  local ONY_TOLERANCE = 30 * 60   
-  local WB_TOLERANCE  = 6 * 3600  
-  local EVENT_MAX_AGE = 24 * 3600 
-
-  local sends = {}  
+  local sends = {}
 
   local function pushIfValid(ev, ts, zone, cooldown, tolerance, eventMaxAge)
     if not ts or type(ts) ~= "number" then return end
@@ -234,44 +239,30 @@ function RespondToRequest()
     local age = now - ts
     if cooldown and type(cooldown) == "number" then
       local allowed = cooldown + (tolerance or 0)
-      if age > allowed then
-        return
-      end
+      if age > allowed then return end
     else
-      if eventMaxAge and age > eventMaxAge then
-        return
-      end
+      if eventMaxAge and age > eventMaxAge then return end
     end
     table.insert(sends, function() SendEvent("TIMER_"..ev, zone or "", ts) end)
   end
 
-  pushIfValid("ONY_A", DB and DB.lastOnyA, nil,               ONY_CD, ONY_TOLERANCE, nil)
-  pushIfValid("ONY_H", DB and DB.lastOnyH, nil,               ONY_CD, ONY_TOLERANCE, nil)
-  pushIfValid("NEF_A", DB and DB.lastNefA, nil,               NEF_CD, ONY_TOLERANCE, nil)
-  pushIfValid("NEF_H", DB and DB.lastNefH, nil,               NEF_CD, ONY_TOLERANCE, nil)
-  pushIfValid("WB",    DB and DB.lastWB,   DB and DB.lastWBZone,  WB_CD, WB_TOLERANCE, nil)
-  pushIfValid("ZG",    DB and DB.lastZG,   nil,               nil,    nil,            EVENT_MAX_AGE)
-  pushIfValid("DMF",   DB and DB.lastDMFTime, DB and DB.lastDMFZone, nil, nil,        EVENT_MAX_AGE)
+  pushIfValid("ONY_A", DB and DB.lastOnyA, nil, ONY_CD, ONY_TOLERANCE, nil)
+  pushIfValid("ONY_H", DB and DB.lastOnyH, nil, ONY_CD, ONY_TOLERANCE, nil)
+  pushIfValid("NEF_A", DB and DB.lastNefA, nil, NEF_CD, ONY_TOLERANCE, nil)
+  pushIfValid("NEF_H", DB and DB.lastNefH, nil, NEF_CD, ONY_TOLERANCE, nil)
+  pushIfValid("WB",    DB and DB.lastWB,   DB and DB.lastWBZone, WB_CD, WB_TOLERANCE, nil)
+  pushIfValid("ZG",    DB and DB.lastZG,   nil, nil, nil, EVENT_MAX_AGE)
+  pushIfValid("DMF",   DB and DB.lastDMFTime, DB and DB.lastDMFZone, nil, nil, EVENT_MAX_AGE)
 
-  if next(sends) == nil then
-    return
-  end
+  if next(sends) == nil then return end
 
   for i, fn in ipairs(sends) do
-    local idx    = i
-    local fnLocal = fn
-    ScheduleAfter((idx - 1) * 0.12, function()
-      if type(fnLocal) == "function" then pcall(fnLocal) end
-    end)
+    ScheduleAfter((i - 1) * 0.12, fn)
   end
 
   ScheduleAfter(1.6, function()
     for i, fn in ipairs(sends) do
-      local idx    = i
-      local fnLocal = fn
-      ScheduleAfter((idx - 1) * 0.12, function()
-        if type(fnLocal) == "function" then pcall(fnLocal) end
-      end)
+      ScheduleAfter((i - 1) * 0.12, fn)
     end
   end)
 end
@@ -288,15 +279,36 @@ end
 
 local function IsSuspicious(ev, ts)
   local now = time()
+  if not ts or ts <= 0 then
+    return true
+  end
+  if ev == "ONY_A" or ev == "ONY_H" or ev == "NEF_A" or ev == "NEF_H" then
+    if ts < now - (ONY_CD + 30 * 60) then
+      return true
+    end
 
+  elseif ev == "WB" then
+    if ts < now - (WB_CD + 30 * 60) then
+      return true
+    end
+
+  elseif ev == "ZG" then
+    if ts < now - 24 * 3600 then
+      return true
+    end
+
+  elseif ev == "DMF" then
+    if ts < now - 7 * 24 * 3600 then
+      return true
+    end
+  end
   if ev == "ONY_A" or ev == "ONY_H" or ev == "NEF_A" or ev == "NEF_H" or ev == "WB" then
     local last = nil
     if ev == "ONY_A" then last = DB and DB.lastOnyA end
     if ev == "ONY_H" then last = DB and DB.lastOnyH end
     if ev == "NEF_A" then last = DB and DB.lastNefA end
     if ev == "NEF_H" then last = DB and DB.lastNefH end
-    if ev == "WB"    then last = DB and DB.lastWB   end
-
+    if ev == "WB"    then last = DB and DB.lastWB end
     if last and ts and ts > last + 300 then
       return true
     end
@@ -351,18 +363,13 @@ end
 local function AcceptEvent(ev, ts, zone)
   local now = time()
   if not ts or ts <= 0 then return end
-  if ts < (now - 30 * 24 * 3600) then
-    return
-  end
-  if ts > (now + 3600) then
-    return
-  end
-  
-  if ev == "ONY_A" then DB.lastOnyA   = ts end
-  if ev == "ONY_H" then DB.lastOnyH   = ts end
-  if ev == "NEF_A" then DB.lastNefA   = ts end
-  if ev == "NEF_H" then DB.lastNefH   = ts end
-  if ev == "ZG"    then DB.lastZG     = ts end
+  if ts < (now - 30 * 24 * 3600) or ts > (now + 3600) then return end
+
+  if ev == "ONY_A" then DB.lastOnyA = ts end
+  if ev == "ONY_H" then DB.lastOnyH = ts end
+  if ev == "NEF_A" then DB.lastNefA = ts end
+  if ev == "NEF_H" then DB.lastNefH = ts end
+  if ev == "ZG"    then DB.lastZG = ts end
   if ev == "DMF"   then DB.lastDMFTime = ts; DB.lastDMFZone = zone end
   if ev == "WB"    then DB.lastWB = ts; DB.lastWBZone = zone end
 
@@ -384,29 +391,50 @@ local function AcceptEvent(ev, ts, zone)
 end
 
 local function AddUnconfirmedEvent(ev, ts, sender, zone)
-  RH_Unconfirmed[ev] = {
-    ts     = ts,
-    sender = sender,
-    zone   = zone,
-    time   = time(),
-  }
-
-  if type(RallyHelper_UpdateUI) == "function" then
-    RallyHelper_UpdateUI()
-  end
+  RH_Unconfirmed[ev] = { ts = ts, sender = sender, zone = zone, time = time() }
+  if type(RallyHelper_UpdateUI) == "function" then RallyHelper_UpdateUI() end
 end
 
 local function CountUsers()
-  local now   = time()
+  local now = time()
   local count = 0
   for name, ts in pairs(RH_Users) do
-    if now - ts < 60 then
-      count = count + 1
-    else
-      RH_Users[name] = nil
-    end
+    if now - ts < 60 then count = count + 1 else RH_Users[name] = nil end
   end
   return count
+end
+
+
+local function ShouldHideRallyHelperMessage(msg)
+  if type(msg) ~= "string" then return false end
+  local lower = strlower(msg)
+  if type(lower) ~= "string" then return false end
+
+  if strfind(lower, "^ony_") or strfind(lower, "^nef_") or strfind(lower, "^wb_") or
+     strfind(lower, "^zg^") or strfind(lower, "^dmf^") or strfind(lower, "^req^") or
+     strfind(lower, "^timer_") then
+    return true
+  end
+
+  if strfind(lower, "rallyhelper") and strfind(lower, "%^") then
+    return true
+  end
+
+  return false
+end
+
+local function HookChatFrames()
+  for i = 1, NUM_CHAT_WINDOWS or 10 do
+    local cf = _G["ChatFrame" .. i]
+    if cf and cf.AddMessage and not cf._rhHooked then
+      local orig = cf.AddMessage
+      cf.AddMessage = function(self, msg, r, g, b, id)
+        if ShouldHideRallyHelperMessage(msg) then return end
+        return orig(self, msg, r, g, b, id)
+      end
+      cf._rhHooked = true
+    end
+  end
 end
 
 local function DetectMasterVolumeCVar()
@@ -421,53 +449,38 @@ end
 local _RH_MasterCVar = DetectMasterVolumeCVar()
 
 local function SetMasterVolumePercent(percent)
-  if type(percent) ~= "number" then return nil end
   if not _RH_MasterCVar then return nil end
   percent = math.max(0, math.min(100, percent))
   local ok, prev = pcall(GetCVar, _RH_MasterCVar)
   if not ok or prev == nil then return nil end
   local prevPercent = math.floor((tonumber(prev) or 1) * 100 + 0.5)
-  local sOk = pcall(SetCVar, _RH_MasterCVar, tostring(percent / 100))
-  if not sOk then return nil end
+  pcall(SetCVar, _RH_MasterCVar, tostring(percent / 100))
   return prevPercent
 end
 
 local function RestoreMasterVolume(percent)
-  if type(percent) ~= "number" then return false end
-  if not _RH_MasterCVar then return false end
+  if not _RH_MasterCVar or type(percent) ~= "number" then return false end
   return pcall(SetCVar, _RH_MasterCVar, tostring(percent / 100))
 end
 
 local function TryPlayFile(path)
-  if not path or path == "" then
-    return false
-  end
-  if type(PlaySoundFile) ~= "function" then
-    return false
-  end
-  local ok, err = pcall(function() PlaySoundFile(path, "Master") end)
+  if not path or path == "" then return false end
+  local ok = pcall(function() PlaySoundFile(path, "Master") end)
   return ok
 end
 
 local function TryPlaySoundkitFor(ev)
-  if type(PlaySound) ~= "function" then
-    return false
-  end
-  if type(SOUNDKIT) ~= "table" then
-    return false
-  end
-
+  if type(PlaySound) ~= "function" or type(SOUNDKIT) ~= "table" then return false end
   local ok = false
   if (ev == "ONY_A" or ev == "NEF_A") and SOUNDKIT.RAID_WARNING then
-    ok = pcall(function() PlaySound(SOUNDKIT.RAID_WARNING) end)
+    ok = pcall(PlaySound, SOUNDKIT.RAID_WARNING)
   elseif (ev == "ONY_H" or ev == "NEF_H") and SOUNDKIT.IG_QUEST_LIST_UPDATE then
-    ok = pcall(function() PlaySound(SOUNDKIT.IG_QUEST_LIST_UPDATE) end)
+    ok = pcall(PlaySound, SOUNDKIT.IG_QUEST_LIST_UPDATE)
   elseif ev == "WB" and SOUNDKIT.UI_BATTLEGROUND_COUNTDOWN_TIMER then
-    ok = pcall(function() PlaySound(SOUNDKIT.UI_BATTLEGROUND_COUNTDOWN_TIMER) end)
+    ok = pcall(PlaySound, SOUNDKIT.UI_BATTLEGROUND_COUNTDOWN_TIMER)
   elseif ev == "ZG" and SOUNDKIT.UI_RAID_BOSS_WHISPER then
-    ok = pcall(function() PlaySound(SOUNDKIT.UI_RAID_BOSS_WHISPER) end)
+    ok = pcall(PlaySound, SOUNDKIT.UI_RAID_BOSS_WHISPER)
   end
-
   return ok
 end
 
@@ -475,18 +488,14 @@ local function PlayBuffSoundFor(ev)
   if not (DB and DB.rhSounds and DB.rhSounds.enabled) then return end
 
   local file = DB.rhSounds.files and DB.rhSounds.files[ev]
-
   local desired = tonumber(DB.rhSounds.volume) or 100
-  local prev = nil
-  if desired >= 0 and desired <= 100 then
-    prev = SetMasterVolumePercent(desired)
-  end
+  local prev = SetMasterVolumePercent(desired)
 
   local played = false
   if file then played = TryPlayFile(file) end
   if not played then TryPlaySoundkitFor(ev) end
 
-  if prev ~= nil then
+  if prev then
     ScheduleAfter(0.2, function() RestoreMasterVolume(prev) end)
   end
 end
@@ -495,7 +504,6 @@ do
   local _origAccept = AcceptEvent
   AcceptEvent = function(ev, ts, zone)
     _origAccept(ev, ts, zone)
-
     local now = time()
     local detectedUntil = RH_LocalDetected[ev]
     if detectedUntil and now <= detectedUntil then
@@ -599,12 +607,12 @@ local function HandleChannel(msg, channel)
     return out
   end
 
-  local parts       = SplitMessage(msg)
-  local ev          = parts[1]
-  local ts          = tonumber(parts[2])
-  local sender      = parts[3]
-  local zone        = parts[4]
-  local verPart     = parts[5]
+  local parts = SplitMessage(msg)
+  local ev = parts[1]
+  local ts = tonumber(parts[2])
+  local sender = parts[3]
+  local zone = parts[4]
+  local verPart = parts[5]
   local senderVersion = nil
 
   if type(verPart) == "string" then
@@ -632,12 +640,8 @@ local function HandleChannel(msg, channel)
 
   if ev == "REQ" then
     local myName = UnitName("player") or ""
-    if sender == myName then
-      return
-    end
-    if type(RespondToRequest) == "function" then
-      RespondToRequest()
-    end
+    if sender == myName then return end
+    if type(RespondToRequest) == "function" then RespondToRequest() end
     return
   end
 
@@ -651,91 +655,68 @@ local function HandleChannel(msg, channel)
     end
 
     table.insert(RH_TimerResponses[realEv], {
-      ts     = ts,
-      adj    = adjusted,
-      sender = sender,
-      zone   = zone,
-      ver    = senderVersion or 0,
+      ts = ts, adj = adjusted, sender = sender, zone = zone, ver = senderVersion or 0
     })
 
     if not RH_TimerResponseTimers[realEv] then
       RH_TimerResponseTimers[realEv] = true
       ScheduleAfter(TIMER_RESPONSE_WINDOW, function()
-
         local now = time()
-
         local list = RH_TimerResponses[realEv] or {}
         if next(list) == nil then
-          RH_TimerResponses[realEv]      = nil
+          RH_TimerResponses[realEv] = nil
           RH_TimerResponseTimers[realEv] = nil
           return
         end
 
         local filtered = {}
         for _, v in ipairs(list) do
-          if (v.ver or 0) >= MIN_ACCEPTED_VERSION then
-            table.insert(filtered, v)
-          end
+          if (v.ver or 0) >= MIN_ACCEPTED_VERSION then table.insert(filtered, v) end
         end
         if next(filtered) == nil then filtered = list end
 
         local bestIdx, bestDiff, bestTs, bestZone = nil, nil, 0, ""
         for i, v in ipairs(filtered) do
-          local adj  = v.adj or v.ts
+          local adj = v.adj or v.ts
           local diff = math.abs(adj - now)
           if bestDiff == nil or diff < bestDiff then
             bestDiff = diff
-            bestIdx  = i
-            bestTs   = v.ts or 0
+            bestIdx = i
+            bestTs = v.ts or 0
             bestZone = v.zone or ""
           elseif diff == bestDiff and (v.zone or "") ~= "" then
-            bestIdx  = i
-            bestTs   = v.ts or 0
+            bestIdx = i
+            bestTs = v.ts or 0
             bestZone = v.zone or ""
           end
         end
 
         if bestIdx and bestDiff and bestDiff < (7 * 24 * 3600) and bestTs > 0 then
           if not IsSuspicious(realEv, bestTs) then
-  AcceptEvent(realEv, bestTs, bestZone)
-else
-  if DB and DB.debug then
-    DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH]|r Ignored suspicious timer for "..tostring(realEv).." ("..tostring(bestTs)..")")
-  end
-end
-
-        else
+            AcceptEvent(realEv, bestTs, bestZone)
+          else
+            if DB and DB.debug then
+              DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH]|r Ignored suspicious timer for "..tostring(realEv))
+            end
+          end
         end
 
-        RH_TimerResponses[realEv]      = nil
+        RH_TimerResponses[realEv] = nil
         RH_TimerResponseTimers[realEv] = nil
       end)
     end
     return
   end
 
-if ev == "ZG" then
-  if not IsSuspicious(ev, ts) then
-    AcceptEvent(ev, ts, zone)
-  else
-    if DB and DB.debug then
-      DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH]|r Ignored suspicious ZG for "..tostring(sender).." ("..tostring(ts)..")")
-    end
+  if ev == "ZG" then
+    if not IsSuspicious(ev, ts) then AcceptEvent(ev, ts, zone) end
+    return
   end
-  return
-end
 
-if ev == "DMF" then
-  if not IsSuspicious(ev, ts) then
-    AcceptEvent(ev, ts, zone)
-  else
-    if DB and DB.debug then
-      DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH]|r Ignored suspicious DMF for "..tostring(sender).." ("..tostring(ts)..")")
-    end
+  if ev == "DMF" then
+    if not IsSuspicious(ev, ts) then AcceptEvent(ev, ts, zone) end
+    return
   end
-  return
-end
-
 
   local required = RH_VERIFY_REQUIRED
   local ok, bestTs, bestZone = VerifyEvent(ev, ts, sender, zone, required)
@@ -750,7 +731,6 @@ end
 
 local function HandleYell(npc, msg)
   if type(npc) ~= "string" or type(msg) ~= "string" then return end
-
   local lowerMsg = string.lower(msg)
   local function has(s) return string.find(lowerMsg, s, 1, true) ~= nil end
 
@@ -814,16 +794,18 @@ local function HandleYell(npc, msg)
 end
 
 local DMF_NPCS = {
-  ["Sayge"]                    = true,
+  ["Sayge"] = true,
   ["Professor Thaddeus Paleo"] = true,
-  ["Gelvas Grimegate"]         = true,
-  ["Stamp Thunderhorn"]        = true,
+  ["Gelvas Grimegate"] = true,
+  ["Stamp Thunderhorn"] = true,
   ["Darkmoon Faire Mystic Mage"] = true,
 }
 
 local function SafeZoneText()
   local z = GetZoneText() or ""
-  return str.gsub(z, "|", "/")
+  z = strgsub(z, "|", " ")
+  z = strgsub(z, "\\", "")
+  return z
 end
 
 local function TryDMF()
@@ -861,6 +843,22 @@ function PrintStatus()
   DEFAULT_CHAT_FRAME:AddMessage("ZG last drop: " .. (DB.lastZG and FormatAgo(DB.lastZG) or "unknown"))
   DEFAULT_CHAT_FRAME:AddMessage("DMF last seen: " .. (DB.lastDMFTime and FormatAgo(DB.lastDMFTime) or "unknown"))
   DEFAULT_CHAT_FRAME:AddMessage("Rend: " .. (DB.lastWB and FormatTimeSimple(DB.lastWB + WB_CD - now) or "ready"))
+end
+
+
+
+function ShareTimersToChat()
+  local now = time()
+  local text = "Ony SW: " .. (DB.lastOnyA and FormatTimeSimple(DB.lastOnyA + ONY_CD - now) or "ready") ..
+               " | Ony OG: " .. (DB.lastOnyH and FormatTimeSimple(DB.lastOnyH + ONY_CD - now) or "ready") ..
+               " | Nef SW: " .. (DB.lastNefA and FormatTimeSimple(DB.lastNefA + NEF_CD - now) or "ready") ..
+               " | Nef OG: " .. (DB.lastNefH and FormatTimeSimple(DB.lastNefH + NEF_CD - now) or "ready")
+
+  text = strgsub(text, "|c%x%x%x%x%x%x%x%x", "")
+  text = strgsub(text, "|r", "")
+  text = strgsub(text, "|", " ")
+
+  RallyHelper_InsertToChat(text)
 end
 
 function RallyHelper_InsertToChat(text)
@@ -921,18 +919,6 @@ function RallyHelper_InsertToChat(text)
       DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RallyHelper]|r Failed to insert text into chat edit box.")
     end
   end
-end
-
-
-
-function ShareTimersToChat()
-  local now = time()
-  RallyHelper_InsertToChat(
-    "Ony SW: " .. (DB.lastOnyA and FormatTimeSimple(DB.lastOnyA + ONY_CD - now) or "ready") .. " | " ..
-    "Ony OG: " .. (DB.lastOnyH and FormatTimeSimple(DB.lastOnyH + ONY_CD - now) or "ready") .. " | " ..
-    "Nef SW: " .. (DB.lastNefA and FormatTimeSimple(DB.lastNefA + NEF_CD - now) or "ready") .. " | " ..
-    "Nef OG: " .. (DB.lastNefH and FormatTimeSimple(DB.lastNefH + NEF_CD - now) or "ready")
-  )
 end
 
 local function CreateMinimapButton()
@@ -1023,7 +1009,9 @@ local function CreateMinimapButton()
     UpdatePos()
   end)
 
-  b:SetScript("OnMouseUp", function() b.isDown = false end)
+  b:SetScript("OnMouseUp", function()
+    b.isDown = false
+  end)
 
   b:SetScript("OnClick", function()
     if arg1 == "MiddleButton" then
@@ -1050,6 +1038,7 @@ local function CreateMinimapButton()
   if DB.minimap.hide then b:Hide() else b:Show() end
 end
 
+
 SLASH_RALLYHELPER1 = "/rally"
 SlashCmdList["RALLYHELPER"] = function(msg)
   msg = string.lower(msg or "")
@@ -1073,8 +1062,6 @@ SlashCmdList["RALLYHELPER"] = function(msg)
   elseif msg == "debug" then
     DB.debug = not DB.debug
     DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Debug: " .. tostring(DB.debug))
-    DEFAULT_CHAT_FRAME:AddMessage("ZG: "  .. (DB.lastZG      and FormatAgo(DB.lastZG)      or "unknown"))
-    DEFAULT_CHAT_FRAME:AddMessage("DMF: " .. (DB.lastDMFTime and FormatAgo(DB.lastDMFTime) or "unknown"))
   elseif msg == "request" then
     RequestTimers()
     DEFAULT_CHAT_FRAME:AddMessage("[RallyHelper] Requested timers from channel")
@@ -1085,6 +1072,27 @@ SlashCmdList["RALLYHELPER"] = function(msg)
   end
 end
 
+local function RH_ServerRestartDetector(msg)
+  if type(msg) ~= "string" then return end
+  local lower = strlower(msg)
+
+  if strfind(lower, "server uptime") or strfind(lower, "uptime:") then
+    if strfind(lower, "0 days") or strfind(lower, "0d") or strfind(lower, "00:00") then
+      DB.lastOnyA = nil
+      DB.lastOnyH = nil
+      DB.lastNefA = nil
+      DB.lastNefH = nil
+      DB.lastZG = nil
+      DB.lastWB = nil
+      DB.lastDMFTime = nil
+      DB.lastDMFZone = nil
+      if DEFAULT_CHAT_FRAME then
+        DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RallyHelper]|r Server restart detected. All timers reset.")
+      end
+    end
+  end
+end
+
 local f = CreateFrame("Frame")
 f:RegisterEvent("PLAYER_LOGIN")
 f:RegisterEvent("CHAT_MSG_CHANNEL")
@@ -1092,50 +1100,19 @@ f:RegisterEvent("CHAT_MSG_MONSTER_YELL")
 f:RegisterEvent("GOSSIP_SHOW")
 f:RegisterEvent("QUEST_GREETING")
 f:RegisterEvent("MERCHANT_SHOW")
+f:RegisterEvent("CHAT_MSG_SYSTEM")
 
 f:SetScript("OnEvent", function()
   if event == "PLAYER_LOGIN" then
-  
-local function RH_RemoveChannelFromChatFrames()
-  local name = RH_CHANNEL_NAME or "RallyHelper"
-  local max = tonumber(NUM_CHAT_WINDOWS) or 10
-  local i = 1
+    EnsureDB()
+    EnsureCharDB()
 
-  while i <= max do
-    local cf = _G["ChatFrame"..i]
-    if cf and cf.RemoveChannel then
-      pcall(function()
-        cf:RemoveChannel(name)
-      end)
-    end
-    i = i + 1
-  end
-end
-
-
-ScheduleAfter(0.5, HookRallyHelperChatFrames)
-
-    if type(EnsureDB) == "function" then pcall(EnsureDB) end
-    if type(EnsureCharDB) == "function" then pcall(EnsureCharDB) end
+    ScheduleAfter(0.5, HookChatFrames)
 
     JoinChannel()
     CreateMinimapButton()
 
-    ScheduleAfter(3, function()
-      local now     = time()
-      local MAX_AGE = 7 * 24 * 3600
-      local hasValid = DB and (
-        (DB.lastOnyA    and DB.lastOnyA    > 0 and (now - DB.lastOnyA)    < MAX_AGE) or
-        (DB.lastOnyH    and DB.lastOnyH    > 0 and (now - DB.lastOnyH)    < MAX_AGE) or
-        (DB.lastNefA    and DB.lastNefA    > 0 and (now - DB.lastNefA)    < MAX_AGE) or
-        (DB.lastNefH    and DB.lastNefH    > 0 and (now - DB.lastNefH)    < MAX_AGE) or
-        (DB.lastZG      and DB.lastZG      > 0 and (now - DB.lastZG)      < MAX_AGE) or
-        (DB.lastWB      and DB.lastWB      > 0 and (now - DB.lastWB)      < MAX_AGE) or
-        (DB.lastDMFTime and DB.lastDMFTime > 0 and (now - DB.lastDMFTime) < MAX_AGE)
-      )
-
-        RequestTimers()
-    end)
+    ScheduleAfter(3, RequestTimers)
 
     if type(RH_CreateUI) == "function" then RH_CreateUI() end
 
@@ -1164,15 +1141,8 @@ ScheduleAfter(0.5, HookRallyHelperChatFrames)
 
   elseif event == "GOSSIP_SHOW" or event == "QUEST_GREETING" or event == "MERCHANT_SHOW" then
     TryDMF()
+
+  elseif event == "CHAT_MSG_SYSTEM" then
+    RH_ServerRestartDetector(arg1)
   end
 end)
-
-local orig_AddMessage = ChatFrame1.AddMessage
-
-ChatFrame1.AddMessage = function(self, msg, r, g, b, id)
-  if type(msg) == "string" and string.find(string.lower(msg), string.lower(RH_CHANNEL_NAME)) then
-    return
-  end
-
-  return orig_AddMessage(self, msg, r, g, b, id)
-end
