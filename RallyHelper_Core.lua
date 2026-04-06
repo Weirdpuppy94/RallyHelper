@@ -695,9 +695,7 @@ local function HandleChannel(msg, channel)
           if not IsSuspicious(realEv, bestTs) then
             AcceptEvent(realEv, bestTs, bestZone)
           else
-            if DB and DB.debug then
-              DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH]|r Ignored suspicious timer for "..tostring(realEv))
-            end
+            
           end
         end
 
