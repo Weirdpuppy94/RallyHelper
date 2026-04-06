@@ -1,4 +1,4 @@
--- RallyHelper_Core v 1.4.3
+-- RallyHelper_Core v 1.4.4
 
 local RH_CHANNEL_NAME = "RallyHelper"
 local RH_VERIFY_WINDOW = 30
@@ -227,44 +227,51 @@ function RespondToRequest()
   if not CanSend("TIMER_REQ") then return end
 
   local now = time()
-  local ONY_TOLERANCE = 30 * 60
-  local WB_TOLERANCE  = 6 * 3600
-  local EVENT_MAX_AGE = 24 * 3600
+  local ONY_TOLERANCE = 45 * 60
+  local WB_TOLERANCE  = 90 * 60
+  local EVENT_MAX_AGE = 48 * 3600
 
   local sends = {}
 
   local function pushIfValid(ev, ts, zone, cooldown, tolerance, eventMaxAge)
-    if not ts or type(ts) ~= "number" then return end
-    if ts <= 0 then return end
+    if not ts or type(ts) ~= "number" or ts <= 0 then return end
     local age = now - ts
-    if cooldown and type(cooldown) == "number" then
-      local allowed = cooldown + (tolerance or 0)
-      if age > allowed then return end
-    else
-      if eventMaxAge and age > eventMaxAge then return end
-    end
+    if cooldown and age > (cooldown + (tolerance or 0)) then return end
+    if eventMaxAge and age > eventMaxAge then return end
+
     table.insert(sends, function() SendEvent("TIMER_"..ev, zone or "", ts) end)
   end
 
-  pushIfValid("ONY_A", DB and DB.lastOnyA, nil, ONY_CD, ONY_TOLERANCE, nil)
-  pushIfValid("ONY_H", DB and DB.lastOnyH, nil, ONY_CD, ONY_TOLERANCE, nil)
-  pushIfValid("NEF_A", DB and DB.lastNefA, nil, NEF_CD, ONY_TOLERANCE, nil)
-  pushIfValid("NEF_H", DB and DB.lastNefH, nil, NEF_CD, ONY_TOLERANCE, nil)
-  pushIfValid("WB",    DB and DB.lastWB,   DB and DB.lastWBZone, WB_CD, WB_TOLERANCE, nil)
-  pushIfValid("ZG",    DB and DB.lastZG,   nil, nil, nil, EVENT_MAX_AGE)
-  pushIfValid("DMF",   DB and DB.lastDMFTime, DB and DB.lastDMFZone, nil, nil, EVENT_MAX_AGE)
+  pushIfValid("ONY_A", DB.lastOnyA, nil, ONY_CD, ONY_TOLERANCE)
+  pushIfValid("ONY_H", DB.lastOnyH, nil, ONY_CD, ONY_TOLERANCE)
+  pushIfValid("NEF_A", DB.lastNefA, nil, NEF_CD, ONY_TOLERANCE)
+  pushIfValid("NEF_H", DB.lastNefH, nil, NEF_CD, ONY_TOLERANCE)
+  pushIfValid("WB",    DB.lastWB,   DB.lastWBZone, WB_CD, WB_TOLERANCE)
+  pushIfValid("ZG",    DB.lastZG,   nil, nil, nil, EVENT_MAX_AGE)
+  pushIfValid("DMF",   DB.lastDMFTime, DB.lastDMFZone, nil, nil, EVENT_MAX_AGE)
 
-  if next(sends) == nil then return end
-
-  for i, fn in ipairs(sends) do
-    ScheduleAfter((i - 1) * 0.12, fn)
-  end
-
-  ScheduleAfter(1.6, function()
-    for i, fn in ipairs(sends) do
-      ScheduleAfter((i - 1) * 0.12, fn)
+  local hasSends = false
+  for i = 1, 100 do  
+    if sends[i] then
+      hasSends = true
+      break
+    else
+      break
     end
-  end)
+  end
+  if not hasSends then return end
+
+  for i = 1, 2 do
+    local delayBase = (i-1) * 1.2
+    for j = 1, 100 do
+      local fn = sends[j]
+      if fn then
+        ScheduleAfter((j - 1) * 0.15 + delayBase, fn)
+      else
+        break
+      end
+    end
+  end
 end
 
 local function Prune(list)
@@ -278,30 +285,38 @@ local function Prune(list)
 end
 
 local function IsSuspicious(ev, ts)
-  local now = time()
   if not ts or ts <= 0 then
     return true
   end
+
+  local now = time()
+
+  local isFreshClient = (RHGlobal.lastNow == nil) or (now - RHGlobal.lastNow > 1800)
+
+  local extraTolerance = isFreshClient and 7200 or 3600
+
   if ev == "ONY_A" or ev == "ONY_H" or ev == "NEF_A" or ev == "NEF_H" then
-    if ts < now - (ONY_CD + 30 * 60) then
+    if ts < now - (ONY_CD + extraTolerance) then
       return true
     end
-
   elseif ev == "WB" then
-    if ts < now - (WB_CD + 30 * 60) then
+    if ts < now - (WB_CD + extraTolerance) then
       return true
     end
-
   elseif ev == "ZG" then
-    if ts < now - 24 * 3600 then
+    if ts < now - 48 * 3600 then
       return true
     end
-
   elseif ev == "DMF" then
-    if ts < now - 7 * 24 * 3600 then
+    if ts < now - 14 * 24 * 3600 then
       return true
     end
   end
+
+  if ts > now + 3600 then
+    return true
+  end
+
   if ev == "ONY_A" or ev == "ONY_H" or ev == "NEF_A" or ev == "NEF_H" or ev == "WB" then
     local last = nil
     if ev == "ONY_A" then last = DB and DB.lastOnyA end
@@ -309,13 +324,10 @@ local function IsSuspicious(ev, ts)
     if ev == "NEF_A" then last = DB and DB.lastNefA end
     if ev == "NEF_H" then last = DB and DB.lastNefH end
     if ev == "WB"    then last = DB and DB.lastWB end
+
     if last and ts and ts > last + 300 then
       return true
     end
-  end
-
-  if (ev == "ZG" or ev == "DMF") and ts and ts > now + 3600 then
-    return true
   end
 
   return false
