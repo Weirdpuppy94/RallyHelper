@@ -748,51 +748,44 @@ end
 
 local function HandleYell(npc, msg)
   if type(npc) ~= "string" or type(msg) ~= "string" then return end
+
   local lowerMsg = string.lower(msg)
   local function has(s) return string.find(lowerMsg, s, 1, true) ~= nil end
 
-  if npc == "Major Mattingly" and (has("onyxia") or has("head")) then
-    RH_LocalDetected["ONY_A"] = time() + LOCAL_DETECT_WINDOW
-    AcceptEvent("ONY_A", time())
-    SendEvent("ONY_A")
-    return
+  if npc == "Major Mattingly" then
+    if has("onyxia") or has("head") or has("dragon slayer") or has("dread lady") then
+      RH_LocalDetected["ONY_A"] = time() + LOCAL_DETECT_WINDOW
+      AcceptEvent("ONY_A", time())
+      SendEvent("ONY_A")
+      return
+    end
   end
 
-  if npc == "Field Marshal Afrasiabi" and (has("nefarian") or has("blackrock")) then
-    RH_LocalDetected["NEF_A"] = time() + LOCAL_DETECT_WINDOW
-    AcceptEvent("NEF_A", time())
-    SendEvent("NEF_A")
-    return
+  if npc == "Field Marshal Afrasiabi" then
+    if has("nefarian") or has("blackrock") then
+      RH_LocalDetected["NEF_A"] = time() + LOCAL_DETECT_WINDOW
+      AcceptEvent("NEF_A", time())
+      SendEvent("NEF_A")
+      return
+    end
   end
 
-  if npc == "High Overlord Saurfang" and (has("onyxia") or has("brood mother")) then
-    RH_LocalDetected["ONY_H"] = time() + LOCAL_DETECT_WINDOW
-    AcceptEvent("ONY_H", time())
-    SendEvent("ONY_H")
-    return
-  end
-
-  if npc == "High Overlord Saurfang" and (has("nefarian") or has("blackrock")) then
-    RH_LocalDetected["NEF_H"] = time() + LOCAL_DETECT_WINDOW
-    AcceptEvent("NEF_H", time())
-    SendEvent("NEF_H")
-    return
-  end
-
-  if npc == "Overlord Runthak" then
+  if npc == "High Overlord Saurfang" or npc == "Overlord Runthak" then
     if has("onyxia") or has("brood mother") then
       RH_LocalDetected["ONY_H"] = time() + LOCAL_DETECT_WINDOW
       AcceptEvent("ONY_H", time())
       SendEvent("ONY_H")
       return
     end
+  end
+
+  if npc == "High Overlord Saurfang" or npc == "Overlord Runthak" then
     if has("nefarian") or has("blackrock") then
       RH_LocalDetected["NEF_H"] = time() + LOCAL_DETECT_WINDOW
       AcceptEvent("NEF_H", time())
       SendEvent("NEF_H")
       return
     end
-    return
   end
 
   if npc == "Molthor" and (has("hakkar") or has("slayer of hakkar")) then
