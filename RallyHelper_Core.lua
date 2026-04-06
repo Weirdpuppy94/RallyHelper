@@ -72,6 +72,11 @@ local function EnsureCharDB()
   CharDB = RallyHelperCharDB or {}
   RallyHelperCharDB = CharDB
 
+if RHGlobal.versionWarningShown == nil then
+  DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RallyHelper]|r Please update to version 1.4.3+ - older versions are no longer supported.")
+  RHGlobal.versionWarningShown = true
+	end
+
   CharDB.version = CharDB.version or 0
   if CharDB.version < CHAR_DB_VERSION then
     CharDB.version = CHAR_DB_VERSION
