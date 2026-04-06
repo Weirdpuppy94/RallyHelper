@@ -11,8 +11,8 @@ local WB_CD = 3 * 60 * 60
 local WB_WARN_DELAY = 6
 local DB_VERSION = 2
 local CHAR_DB_VERSION = 1
-local ADDON_VERSION = 2
-local MIN_ACCEPTED_VERSION = 2
+local ADDON_VERSION = 3
+local MIN_ACCEPTED_VERSION = 3
 
 local DB
 local CharDB
