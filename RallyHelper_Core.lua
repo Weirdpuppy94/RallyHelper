@@ -291,16 +291,23 @@ local function IsSuspicious(ev, ts)
 
   local now = time()
 
+  local serverUptime = now - (RHGlobal.serverStartTime or now)
+  local isRightAfterRestart = serverUptime < 1800 
+
   local isFreshClient = (RHGlobal.lastNow == nil) or (now - RHGlobal.lastNow > 1800)
 
-  local extraTolerance = isFreshClient and 7200 or 3600
+  local extraTolerance = 7200  
+
+  if isRightAfterRestart then
+    extraTolerance = 14400
+  end
 
   if ev == "ONY_A" or ev == "ONY_H" or ev == "NEF_A" or ev == "NEF_H" then
-    if ts < now - (ONY_CD + extraTolerance) then
+    if ts < now - (ONY_CD + extraTolerance) and not isFreshClient then
       return true
     end
   elseif ev == "WB" then
-    if ts < now - (WB_CD + extraTolerance) then
+    if ts < now - (WB_CD + extraTolerance) and not isFreshClient then
       return true
     end
   elseif ev == "ZG" then
@@ -1117,6 +1124,7 @@ f:SetScript("OnEvent", function()
     EnsureDB()
     EnsureCharDB()
 
+    RHGlobal.serverStartTime = RHGlobal.serverStartTime or time()
     ScheduleAfter(0.5, HookChatFrames)
 
     JoinChannel()
