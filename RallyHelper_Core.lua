@@ -292,14 +292,13 @@ local function IsSuspicious(ev, ts)
   local now = time()
 
   local serverUptime = now - (RHGlobal.serverStartTime or now)
-  local isRightAfterRestart = serverUptime < 1800 
+  local isRightAfterRestart = serverUptime < 1800   
 
   local isFreshClient = (RHGlobal.lastNow == nil) or (now - RHGlobal.lastNow > 1800)
 
-  local extraTolerance = 7200  
-
+  local extraTolerance = 7200
   if isRightAfterRestart then
-    extraTolerance = 14400
+    extraTolerance = 14400      
   end
 
   if ev == "ONY_A" or ev == "ONY_H" or ev == "NEF_A" or ev == "NEF_H" then
@@ -311,13 +310,9 @@ local function IsSuspicious(ev, ts)
       return true
     end
   elseif ev == "ZG" then
-    if ts < now - 48 * 3600 then
-      return true
-    end
+    if ts < now - 48 * 3600 then return true end
   elseif ev == "DMF" then
-    if ts < now - 14 * 24 * 3600 then
-      return true
-    end
+    if ts < now - 14 * 24 * 3600 then return true end
   end
 
   if ts > now + 3600 then
@@ -332,13 +327,13 @@ local function IsSuspicious(ev, ts)
     if ev == "NEF_H" then last = DB and DB.lastNefH end
     if ev == "WB"    then last = DB and DB.lastWB end
 
-    if last and ts and ts > last + 300 then
+    if last and ts and ts > last + 480 then 
       return true
     end
   end
 
   return false
-end
+	end
 
 
 local function VerifyEvent(ev, ts, sender, zone, required)
