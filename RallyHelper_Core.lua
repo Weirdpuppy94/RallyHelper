@@ -119,23 +119,6 @@ end
 
 _G.RH_ShouldShowEvent = ShouldShowEvent
 
-local function SanitizeChat(msg)
-  if not msg then return "" end
-  msg = strgsub(msg, "%%", "%%%%")
-  msg = strgsub(msg, "|", "||")
-  return msg
-end
-
-local function FormatAgo(ts)
-  if not ts then return "unknown" end
-  local d = time() - ts
-  if d < 60 then return d .. "s ago" end
-  if d < 3600 then return floor(d / 60) .. "m ago" end
-  local h = floor(d / 3600)
-  local m = floor((d - h * 3600) / 60)
-  return h .. "h " .. m .. "m ago"
-end
-
 local function GetChannelId()
   for i = 1, 10 do
     local id, name = GetChannelName(i)
@@ -327,7 +310,7 @@ local function IsSuspicious(ev, ts)
     if ev == "NEF_H" then last = DB and DB.lastNefH end
     if ev == "WB"    then last = DB and DB.lastWB end
 
-    if last and ts and ts > last + 480 then   -- 8 Minuten Abstand
+    if last and ts and ts > last + 480 then
       return true
     end
   end
@@ -811,6 +794,15 @@ local function SafeZoneText()
   z = strgsub(z, "\\", "")
   return z
 end
+local function FormatAgo(ts)
+  if not ts then return "unknown" end
+  local d = time() - ts
+  if d < 60 then return d .. "s ago" end
+  if d < 3600 then return floor(d / 60) .. "m ago" end
+  local h = floor(d / 3600)
+  local m = floor((d - h * 3600) / 60)
+  return h .. "h " .. m .. "m ago"
+end
 
 local function TryDMF()
   if UnitExists("npc") then
@@ -1108,14 +1100,11 @@ f:RegisterEvent("CHAT_MSG_SYSTEM")
 
 f:SetScript("OnEvent", function()
   if event == "PLAYER_LOGIN" then
-    if event == "PLAYER_LOGIN" then
     EnsureDB()
     EnsureCharDB()
 
-    
     RHGlobal.serverStartTime = RHGlobal.serverStartTime or time()
-
-    
+        RHGlobal.lastNow = time()
     if RHGlobal.versionWarningShown == nil then
       DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RallyHelper]|r Please update to version 1.4.4+ - older versions are no longer supported.")
       RHGlobal.versionWarningShown = true
@@ -1146,7 +1135,6 @@ f:SetScript("OnEvent", function()
         RallyHelperMinimapButton:Show()
       end
     end)
-end
 
   elseif event == "CHAT_MSG_CHANNEL" then
     HandleChannel(arg1, arg9)
