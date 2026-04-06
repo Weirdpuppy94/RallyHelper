@@ -292,7 +292,7 @@ local function IsSuspicious(ev, ts)
   local now = time()
 
   local serverUptime = now - (RHGlobal.serverStartTime or now)
-  local isRightAfterRestart = serverUptime < 1800   
+  local isRightAfterRestart = serverUptime < 1800 
 
   local isFreshClient = (RHGlobal.lastNow == nil) or (now - RHGlobal.lastNow > 1800)
 
@@ -327,14 +327,13 @@ local function IsSuspicious(ev, ts)
     if ev == "NEF_H" then last = DB and DB.lastNefH end
     if ev == "WB"    then last = DB and DB.lastWB end
 
-    if last and ts and ts > last + 480 then 
+    if last and ts and ts > last + 480 then   -- 8 Minuten Abstand
       return true
     end
   end
 
   return false
-	end
-
+end
 
 local function VerifyEvent(ev, ts, sender, zone, required)
   required = required or RH_VERIFY_REQUIRED
@@ -1109,16 +1108,19 @@ f:RegisterEvent("CHAT_MSG_SYSTEM")
 
 f:SetScript("OnEvent", function()
   if event == "PLAYER_LOGIN" then
+    if event == "PLAYER_LOGIN" then
     EnsureDB()
     EnsureCharDB()
 
-if RHGlobal.versionWarningShown == nil then
-  DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RallyHelper]|r Please update to version 1.4.3+ - older versions are no longer supported.")
-  RHGlobal.versionWarningShown = true
-			end
-
-			
+    
     RHGlobal.serverStartTime = RHGlobal.serverStartTime or time()
+
+    
+    if RHGlobal.versionWarningShown == nil then
+      DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RallyHelper]|r Please update to version 1.4.4+ - older versions are no longer supported.")
+      RHGlobal.versionWarningShown = true
+    end
+
     ScheduleAfter(0.5, HookChatFrames)
 
     JoinChannel()
@@ -1144,6 +1146,7 @@ if RHGlobal.versionWarningShown == nil then
         RallyHelperMinimapButton:Show()
       end
     end)
+end
 
   elseif event == "CHAT_MSG_CHANNEL" then
     HandleChannel(arg1, arg9)
