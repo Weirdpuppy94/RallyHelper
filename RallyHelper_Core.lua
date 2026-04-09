@@ -1,21 +1,23 @@
--- RallyHelper_Core v 1.4.5
-
+-- RallyHelper_Core v 1.4.6
 local RH_CHANNEL_NAME = "RallyHelper"
 local RH_VERIFY_WINDOW = 30
 local RH_VERIFY_REQUIRED = 1
 local RH_VERIFY_REQUIRED_REQUEST = 5
 local RH_SEND_THROTTLE = 20
+
 local ONY_CD = 2 * 60 * 60
 local NEF_CD = 2 * 60 * 60
-local WB_CD = 3 * 60 * 60
+local WB_CD  = 3 * 60 * 60
 local WB_WARN_DELAY = 6
+
 local DB_VERSION = 2
 local CHAR_DB_VERSION = 1
-local ADDON_VERSION = 3
-local MIN_ACCEPTED_VERSION = 3
+local ADDON_VERSION = 4
+local MIN_ACCEPTED_VERSION = 4
 
 local DB
 local CharDB
+
 local verify = {}
 local RH_Users = {}
 local lastSend = {}
@@ -24,17 +26,18 @@ local LOCAL_DETECT_WINDOW = 2.0
 
 local str = _G.string or string
 local strmatch = str.match or function() return nil end
-local strfind = str.find or function() return nil end
+local strfind  = str.find  or function() return nil end
 local strlower = str.lower or function(s) return s end
-local strsub = str.sub or function(s, i, j) return s end
-local strlen = str.len or function(s) return 0 end
-local strgsub = str.gsub or function(s) return s end
+local strsub   = str.sub   or function(s, i, j) return s end
+local strlen   = str.len   or function(s) return 0 end
+local strgsub  = str.gsub  or function(s) return s end
 local floor = math.floor
 
 RHGlobal = RHGlobal or {}
 RH_TimerResponses = RH_TimerResponses or {}
 RH_TimerResponseTimers = RH_TimerResponseTimers or {}
 local TIMER_RESPONSE_WINDOW = 2.0
+
 RHGlobal.Unconfirmed = RHGlobal.Unconfirmed or {}
 local RH_Unconfirmed = RHGlobal.Unconfirmed
 local RH_ClockOffset = RH_ClockOffset or {}
@@ -42,16 +45,15 @@ local RH_ClockOffset = RH_ClockOffset or {}
 local function EnsureDB()
   local realm = GetRealmName() or "UnknownRealm"
   RallyHelperDB = RallyHelperDB or {}
-
   DB = RallyHelperDB[realm] or {}
   RallyHelperDB[realm] = DB
 
   DB.version = DB.version or 0
   if DB.version < DB_VERSION then
-    DB.ui      = DB.ui or {}
+    DB.ui = DB.ui or {}
     DB.minimap = DB.minimap or {}
-    DB.locked  = false
-    DB.toast   = true
+    DB.locked = false
+    DB.toast = true
     DB.version = DB_VERSION
   end
 
@@ -68,8 +70,8 @@ local function EnsureDB()
 
   DB.rhSounds = DB.rhSounds or {}
   DB.rhSounds.enabled = (DB.rhSounds.enabled == nil) and true or DB.rhSounds.enabled
-  DB.rhSounds.volume  = DB.rhSounds.volume or 100
-  DB.rhSounds.files   = DB.rhSounds.files or {
+  DB.rhSounds.volume = DB.rhSounds.volume or 100
+  DB.rhSounds.files = DB.rhSounds.files or {
     ONY_A = "Sound\\Interface\\PVPFlagTakenHordeMono.wav",
     NEF_A = "Sound\\Interface\\PVPFlagTakenHordeMono.wav",
     ONY_H = "Sound\\Interface\\PVPFlagTakenHordeMono.wav",
@@ -77,20 +79,19 @@ local function EnsureDB()
     WB    = "Sound\\Interface\\PVPFlagTakenHordeMono.wav",
     ZG    = "Sound\\Interface\\PVPFlagTakenHordeMono.wav",
   }
+
   DB.toastMode = DB.toastMode or "none"
-  DB.rhIgnore  = DB.rhIgnore or {}
-  DB.debug = DB.debug or false
+  DB.rhIgnore = DB.rhIgnore or {}
+  DB.debug = false
 end
 
 local function EnsureCharDB()
   CharDB = RallyHelperCharDB or {}
   RallyHelperCharDB = CharDB
-
   CharDB.version = CharDB.version or 0
   if CharDB.version < CHAR_DB_VERSION then
     CharDB.version = CHAR_DB_VERSION
   end
-
   CharDB.factionFilter = CharDB.factionFilter or nil
   CharDB.ui = CharDB.ui or {}
   CharDB.locked = (CharDB.locked == nil) and false or CharDB.locked
@@ -117,17 +118,12 @@ _G.RH_SetFactionFilter = SetFactionFilter
 local function ShouldShowEvent(ev)
   local filter = GetFactionFilter()
   if filter == "BOTH" then return true end
-  
   if filter == "HORDE" then
-    if ev == "ONY_A" or ev == "NEF_A" then return false end
-    return true
+    return not (ev == "ONY_A" or ev == "NEF_A")
   end
-  
   if filter == "ALLIANCE" then
-    if ev == "ONY_H" or ev == "NEF_H" or ev == "WB" then return false end
-    return true
+    return not (ev == "ONY_H" or ev == "NEF_H" or ev == "WB")
   end
-  
   return true
 end
 
@@ -135,10 +131,8 @@ _G.RH_ShouldShowEvent = ShouldShowEvent
 
 local function GetChannelId()
   for i = 1, 10 do
-    local id, name = GetChannelName(i)
-    if name == RH_CHANNEL_NAME then
-      return id
-    end
+    local _, name = GetChannelName(i)
+    if name == RH_CHANNEL_NAME then return i end
   end
   return nil
 end
@@ -158,16 +152,12 @@ local function JoinChannel()
   if GetChannelId() then return end
   JoinChannelByName(RH_CHANNEL_NAME)
   Delay(1, function()
-    if not GetChannelId() then
-      JoinChannelByName(RH_CHANNEL_NAME)
-    end
+    if not GetChannelId() then JoinChannelByName(RH_CHANNEL_NAME) end
   end)
 end
 
 local function EnsureChannel()
-  if not GetChannelId() then
-    JoinChannel()
-  end
+  if not GetChannelId() then JoinChannel() end
 end
 
 local function CanSend(ev)
@@ -176,6 +166,7 @@ local function CanSend(ev)
     lastSend[ev] = now
     return true
   end
+  return false
 end
 
 local function SendEvent(ev, zone, ts)
@@ -190,12 +181,10 @@ local function SendEvent(ev, zone, ts)
   ts = ts or time()
 
   local msg = ev .. sep .. tostring(ts) .. sep .. player
-
   if zone and zone ~= "" then
     zone = strgsub(zone, "|", " ")
     msg = msg .. sep .. zone
   end
-
   msg = msg .. sep .. "v" .. tostring(ADDON_VERSION)
 
   msg = strgsub(msg, "|c%x%x%x%x%x%x%x%x", "")
@@ -212,7 +201,7 @@ local function SendEvent(ev, zone, ts)
 end
 
 local function ScheduleAfter(sec, fn)
-  if type(C_Timer) == "table" and type(C_Timer.After) == "function" then
+  if C_Timer and C_Timer.After then
     C_Timer.After(sec, fn)
   else
     Delay(sec, fn)
@@ -225,7 +214,7 @@ function RespondToRequest()
 
   local now = time()
   local ONY_TOLERANCE = 45 * 60
-  local WB_TOLERANCE  = 90 * 60
+  local WB_TOLERANCE = 90 * 60
   local EVENT_MAX_AGE = 48 * 3600
 
   local sends = {}
@@ -235,7 +224,6 @@ function RespondToRequest()
     local age = now - ts
     if cooldown and age > (cooldown + (tolerance or 0)) then return end
     if eventMaxAge and age > eventMaxAge then return end
-
     table.insert(sends, function() SendEvent("TIMER_"..ev, zone or "", ts) end)
   end
 
@@ -243,16 +231,14 @@ function RespondToRequest()
   pushIfValid("ONY_H", DB.lastOnyH, nil, ONY_CD, ONY_TOLERANCE)
   pushIfValid("NEF_A", DB.lastNefA, nil, NEF_CD, ONY_TOLERANCE)
   pushIfValid("NEF_H", DB.lastNefH, nil, NEF_CD, ONY_TOLERANCE)
-  pushIfValid("WB",    DB.lastWB,   DB.lastWBZone, WB_CD, WB_TOLERANCE)
-  pushIfValid("ZG",    DB.lastZG,   nil, nil, nil, EVENT_MAX_AGE)
+  pushIfValid("WB",    DB.lastWB, DB.lastWBZone, WB_CD, WB_TOLERANCE)
+  pushIfValid("ZG",    DB.lastZG, nil, nil, nil, EVENT_MAX_AGE)
   pushIfValid("DMF",   DB.lastDMFTime, DB.lastDMFZone, nil, nil, EVENT_MAX_AGE)
 
   local hasSends = false
-  for i = 1, 100 do  
+  for i = 1, 100 do
     if sends[i] then
       hasSends = true
-      break
-    else
       break
     end
   end
@@ -263,7 +249,7 @@ function RespondToRequest()
     for j = 1, 100 do
       local fn = sends[j]
       if fn then
-        ScheduleAfter((j - 1) * 0.15 + delayBase, fn)
+        ScheduleAfter((j-1)*0.15 + delayBase, fn)
       else
         break
       end
@@ -273,60 +259,30 @@ end
 
 local function Prune(list)
   local now = time()
-  local n = table.getn(list)
-  for i = n, 1, -1 do
-    if now - list[i].ts > RH_VERIFY_WINDOW then
+  for i = 100, 1, -1 do 
+    if list[i] and (now - list[i].ts > RH_VERIFY_WINDOW) then
       table.remove(list, i)
     end
   end
 end
 
 local function IsSuspicious(ev, ts)
-  if not ts or ts <= 0 then
-    return true
-  end
+  if not ts or ts <= 0 then return true end
 
   local now = time()
 
-  local serverUptime = now - (RHGlobal.serverStartTime or now)
-  local isRightAfterRestart = serverUptime < 1800 
-
-  local isFreshClient = (RHGlobal.lastNow == nil) or (now - RHGlobal.lastNow > 1800)
-
-  local extraTolerance = 7200
-  if isRightAfterRestart then
-    extraTolerance = 14400      
+  if ts > now - (6 * 3600) then
+    return false
   end
 
   if ev == "ONY_A" or ev == "ONY_H" or ev == "NEF_A" or ev == "NEF_H" then
-    if ts < now - (ONY_CD + extraTolerance) and not isFreshClient then
-      return true
-    end
+    if ts < now - (ONY_CD + 7200) then return true end
   elseif ev == "WB" then
-    if ts < now - (WB_CD + extraTolerance) and not isFreshClient then
-      return true
-    end
+    if ts < now - (WB_CD + 7200) then return true end
   elseif ev == "ZG" then
     if ts < now - 48 * 3600 then return true end
   elseif ev == "DMF" then
     if ts < now - 14 * 24 * 3600 then return true end
-  end
-
-  if ts > now + 3600 then
-    return true
-  end
-
-  if ev == "ONY_A" or ev == "ONY_H" or ev == "NEF_A" or ev == "NEF_H" or ev == "WB" then
-    local last = nil
-    if ev == "ONY_A" then last = DB and DB.lastOnyA end
-    if ev == "ONY_H" then last = DB and DB.lastOnyH end
-    if ev == "NEF_A" then last = DB and DB.lastNefA end
-    if ev == "NEF_H" then last = DB and DB.lastNefH end
-    if ev == "WB"    then last = DB and DB.lastWB end
-
-    if last and ts and ts > last + 480 then
-      return true
-    end
   end
 
   return false
@@ -385,6 +341,14 @@ local function AcceptEvent(ev, ts, zone)
 
   RH_Unconfirmed[ev] = nil
 
+  if type(RallyHelper_UpdateUI) == "function" then
+    RallyHelper_UpdateUI()
+  end
+
+  if RH_UIFrame and RH_UIFrame.UpdateLayout then
+    RH_UIFrame:UpdateLayout()
+  end
+
   if DB and DB.toastMode then
     if DB.toastMode == "chat" then
       DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RallyHelper]|r " .. ev .. " confirmed")
@@ -395,8 +359,8 @@ local function AcceptEvent(ev, ts, zone)
     end
   end
 
-  if type(RallyHelper_UpdateUI) == "function" then
-    RallyHelper_UpdateUI()
+  if DB.debug then
+    DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[RH Debug]|r Accepted and UI updated: " .. ev)
   end
 end
 
@@ -591,15 +555,45 @@ end
 local function NormalizeChannelName(name)
   if not name then return "" end
   name = strlower(name)
+
   name = strgsub(name, "^%d+%.%s*", "")
+
   name = strgsub(name, "%s+", "")
+  name = strgsub(name, "[%._%-]", "") 
+  
   return name
 end
 
 local function HandleChannel(msg, channel)
+  if DB.debug then
+    DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[RH RAW]|r Channel='" .. tostring(channel) .. "' | Msg start='" .. strsub(tostring(msg), 1, 80) .. "'")
+  end
+
   local clean = NormalizeChannelName(channel)
-  if clean ~= strlower(RH_CHANNEL_NAME) then return end
-  if type(msg) ~= "string" or msg == "" then return end
+  local expected = strlower(RH_CHANNEL_NAME)
+
+  if DB.debug then
+    DEFAULT_CHAT_FRAME:AddMessage("|cffff9900[RH Clean]|r clean='" .. clean .. "' | expected='" .. expected .. "'")
+  end
+
+  if clean ~= expected then
+    if DB.debug then
+      DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[RH] Channel mismatch, ignoring")
+    end
+    return
+  end
+
+  if type(msg) ~= "string" or msg == "" then
+    if DB.debug then
+      DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[RH] Empty message")
+    end
+    return
+  end
+
+  if DB.debug then
+    DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[RH] RallyHelper message accepted for parsing!")
+  end
+
 
   local function SplitMessage(m)
     local out, current = {}, ""
@@ -622,8 +616,10 @@ local function HandleChannel(msg, channel)
   local ts = tonumber(parts[2])
   local sender = parts[3]
   local zone = parts[4]
-  local verPart = parts[5]
-  local senderVersion = nil
+
+  if DB.debug then
+    DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH Debug]|r Parsed → ev=" .. tostring(ev) .. " ts=" .. tostring(ts) .. " sender=" .. tostring(sender))
+  end
 
   if type(verPart) == "string" then
     local v = strmatch(verPart, "^v(%d+)$")
@@ -644,7 +640,9 @@ local function HandleChannel(msg, channel)
   RH_Users[sender] = time()
 
   if DB and DB.rhIgnore and DB.rhIgnore[sender] then
-    if DB and DB.debug then DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH]|r Ignoring sender "..sender) end
+    if DB and DB.debug then 
+      DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH]|r Ignoring sender "..sender) 
+    end
     return
   end
 
@@ -655,7 +653,7 @@ local function HandleChannel(msg, channel)
     return
   end
 
-  if strsub(ev, 1, 6) == "TIMER_" then
+    if strsub(ev, 1, 6) == "TIMER_" then
     local realEv = strsub(ev, 7)
     RH_TimerResponses[realEv] = RH_TimerResponses[realEv] or {}
 
@@ -681,7 +679,9 @@ local function HandleChannel(msg, channel)
 
         local filtered = {}
         for _, v in ipairs(list) do
-          if (v.ver or 0) >= MIN_ACCEPTED_VERSION then table.insert(filtered, v) end
+          if (v.ver or 0) >= MIN_ACCEPTED_VERSION or MIN_ACCEPTED_VERSION == 2 then 
+            table.insert(filtered, v) 
+          end
         end
         if next(filtered) == nil then filtered = list end
 
@@ -701,11 +701,19 @@ local function HandleChannel(msg, channel)
           end
         end
 
-        if bestIdx and bestDiff and bestDiff < (7 * 24 * 3600) and bestTs > 0 then
-          if not IsSuspicious(realEv, bestTs) then
+        if bestIdx and bestTs > 0 then
+                    if not IsSuspicious(realEv, bestTs) then
             AcceptEvent(realEv, bestTs, bestZone)
+            if type(RallyHelper_UpdateUI) == "function" then
+              RallyHelper_UpdateUI()
+            end
+            if DB.debug then
+              DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[RH Debug]|r Accepted TIMER_" .. realEv .. " and UI updated")
+            end
           else
-            
+            if DB.debug then
+              DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[RH Debug]|r Rejected TIMER_" .. realEv .. " by IsSuspicious")
+            end
           end
         end
 
@@ -716,21 +724,27 @@ local function HandleChannel(msg, channel)
     return
   end
 
-  if ev == "ZG" then
-    if not IsSuspicious(ev, ts) then AcceptEvent(ev, ts, zone) end
-    return
-  end
-
-  if ev == "DMF" then
-    if not IsSuspicious(ev, ts) then AcceptEvent(ev, ts, zone) end
+  if ev == "ZG" or ev == "DMF" then
+    if not IsSuspicious(ev, ts) then 
+      AcceptEvent(ev, ts, zone) 
+    end
     return
   end
 
   local required = RH_VERIFY_REQUIRED
   local ok, bestTs, bestZone = VerifyEvent(ev, ts, sender, zone, required)
+
   if ok then
     AcceptEvent(ev, bestTs, bestZone)
     RH_Unconfirmed[ev] = nil
+    return
+  end
+
+  if ts > time() - 300 then
+    if DB.debug then
+      DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RH Debug]|r Accepted fresh event directly: " .. ev)
+    end
+    AcceptEvent(ev, ts, zone)
     return
   end
 
@@ -1139,9 +1153,9 @@ f:SetScript("OnEvent", function()
     EnsureCharDB()
 
     RHGlobal.serverStartTime = RHGlobal.serverStartTime or time()
-        RHGlobal.lastNow = time()
+    RHGlobal.lastNow = time()
     if RHGlobal.versionWarningShown == nil then
-      DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RallyHelper]|r Please update to version 1.4.4+ - older versions are no longer supported.")
+      DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RallyHelper]|r Please update to version 1.4.5+ - older versions are no longer supported.")
       RHGlobal.versionWarningShown = true
     end
 
