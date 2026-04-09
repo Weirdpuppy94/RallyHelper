@@ -1,151 +1,130 @@
-#  **RallyHelper** — Modern World Buff Tracker for Turtle WoW
+# **RallyHelper** — Modern World Buff Tracker for Turtle WoW
 
 <img width="640" height="640" alt="RallyLogo" src="https://github.com/user-attachments/assets/d3519b5c-a137-4a76-ac6e-d33b8a07fffd" />
 
-**RallyHelper** is a lightweight, modern, and reliable world buff tracker for Turtle WoW.  
-It focuses on **accuracy**, **verification**, and **zero spam**, making it a clean alternative to older addons like PizzaWorldBuffs.
+**RallyHelper** is a lightweight, accurate, and clean world buff tracker designed specifically for **Turtle WoW**.
 
-Version **1.4.0** introduces a completely redesigned UI, improved synchronization, and a new settings system.
+It focuses on reliability, minimal chat spam, and modern quality-of-life features.
+
+**Current Version: 1.4.5**
 
 ---
 
 ## ✨ Key Features
 
-### **✔ Verified world buff detection**
-RallyHelper accepts buff events only after verification.  
-The default requirement is **2 independent sources**, but **1‑source mode is temporarily enabled** in 1.4.0 to improve responsiveness during low‑population hours.
+- **Realm-specific Timers**  
+  Timers are now saved per realm. Switching realms no longer shows timers from the previous realm.
 
-### **✔ Unconfirmed Buffs**
-If only one source reports a buff, RallyHelper shows it as:
+- **Verified Buff Detection**  
+  Buff events are only accepted after verification from multiple sources. Unconfirmed buffs are shown clearly.
 
-```
-unconfirmed (12s ago)
-```
+- **Improved Server Restart Detection**  
+  Better detection of server restarts and automatic timer reset.
 
-This helps new users see activity even before full verification.
+- **Zero Spam Design**  
+  No heartbeats, no version spam, no periodic messages — only actual buff events.
 
-### **✔ Zero channel spam**
-RallyHelper sends **only real events**:
-- No heartbeats  
-- No periodic updates  
-- No version spam  
-- No debug noise  
+- **Modern Scalable UI** (since 1.4.0)  
+  - Completely redesigned layout with icons  
+  - Faction filter (Horde / Alliance / Both)  
+  - Resizable, scalable, draggable  
+  - Hover fade effect  
+  - Fully pfUI compatible
 
-Just clean, minimal communication.
+- **Settings Window**  
+  Easy access to faction filter, UI scale, size, lock, sound settings, and more.
 
-### **✔ Anonymous user count**
-`/rally users` shows how many RallyHelper users were active in the last 60 seconds — anonymously.
+- **Unconfirmed Buffs Window**  
+  Scrollable list of buffs that have not yet been fully verified.
 
-### **✔ DMF detection**
-Automatically detects Darkmoon Faire NPCs and records the last seen zone.
+- **Enhanced Minimap Button**  
+  - Left Click → Toggle main UI  
+  - Alt + Click → Open Settings  
+  - Shift + Click → Share timers to chat  
+  - Middle Click → Open Unconfirmed window  
+  - Right Click → Print status  
+  - Alt + Drag → Reposition button
 
-### **✔ New UI (1.4.0)**
-- Fully redesigned layout  
-- Faction‑colored sections  
-- Icons for Ony/Nef/ZG/DMF/WB  
-- Auto‑refresh every 0.4s  
-- Resizable, scalable, draggable  
-- pfUI‑compatible
+- **Darkmoon Faire Detection**  
+  Automatically detects DMF NPCs and records the last seen zone.
 
-### **✔ New Settings Window (1.4.0)**
-- Faction filter (Horde / Alliance / Both)  
-- UI width, height, scale  
-- Lock UI  
-- Buff sound toggle  
-- Clean dialog‑style interface
-
-### **✔ New Unconfirmed Window (1.4.0)**
-- Scrollable list  
-- Filters for Horde / Alliance / ZG / Warchief  
-- Shows timestamp, zone, and source count  
-- Helps diagnose incomplete confirmations
-
-### **✔ Improved minimap button**
-- Left‑click → toggle UI  
-- Alt‑click → settings  
-- Shift‑click → share timers  
-- Middle‑click → unconfirmed  
-- Right‑click → status  
-- Alt‑drag → reposition
+- **Customizable Sounds**  
+  Individual sounds per buff with volume control.
 
 ---
 
 ## 📦 Installation
 
-1. Download the latest release ZIP.  
-2. Extract into your `Interface/AddOns` folder.  
-3. Ensure the folder name is **RallyHelper**.  
-4. Restart the game.
+1. Download the latest release ZIP from GitHub.
+2. Extract the folder into your `Interface/AddOns` directory.
+3. Make sure the folder is named exactly **RallyHelper**.
+4. Restart the game or type `/reload`.
 
 ---
 
-## 🧭 Quick Commands
+## 🧭 Commands (`/rally`)
 
-All commands start with:
+- `/rally` — Toggle the main UI
+- `/rally status` — Print current timers in chat
+- `/rally share` — Insert current timers into chat edit box
+- `/rally request` — Request timers from other players
+- `/rally settings` — Open the settings window
+- `/rally reset` — Reset UI position and size
+- `/rally users` — Show number of active RallyHelper users (anonymous)
 
-```
-/rally
-```
+**Sound & Toast:**
+- `/rallysound on|off`
+- `/rallysound volume <0-100>`
+- `/rallytoast chat|ui|none`
 
-### **Core**
-- `/rally` — Toggle the main UI  
-- `/rally status` — Print current timers  
-- `/rally share` — Insert timers into chat edit box  
-- `/rally request` — Request timers from other users  
-- `/rally users` — Show number of active RallyHelper users  
-- `/rally debug` — Toggle debug mode  
-
-### **UI**
-- `/rally lock` — Lock/unlock UI movement  
-- `/rally reset` — Reset UI position and size  
-- `/rally settings` — Open settings window  
-
-### **Sound & notifications**
-- `/rallysound on|off` — Enable/disable buff sounds  
-- `/rallysound set <EVENT> <path>` — Custom sound file  
-- `/rallysound volume <0-100>` — Set volume  
-- `/rallytoast chat|ui|none` — Choose confirmation display  
-
-### **Ignore**
-- `/rallyignore add|remove|list <name>` — Ignore noisy senders  
+**Ignore System:**
+- `/rallyignore add|remove|list <name>`
 
 ---
 
 ## 📷 Screenshots
 
-<img width="577" height="223" alt="new-UI" src="https://github.com/user-attachments/assets/ea17a747-a63b-44df-b019-3360719dfa4a" />
+
+<img width="395" height="204" alt="both" src="https://github.com/user-attachments/assets/14c098d9-e93d-4019-ac46-ef514c695bd5" />
+
+<img width="343" height="149" alt="alliance" src="https://github.com/user-attachments/assets/6188037e-2495-4de2-ae74-a81d508aab6f" />
+
+<img width="327" height="180" alt="horde" src="https://github.com/user-attachments/assets/09dc2b01-ebb9-489d-b12a-4de99cb23129" />
 
 ![Settings](https://github.com/user-attachments/assets/b092ca3e-c64e-4c23-b5dd-428e304e5181)
 
+---
 
+## 🧾 Changelog (Summary)
+
+**1.4.5** (Latest)
+- Timers are now saved **per realm** (no more cross-realm timer leakage)
+- Significantly improved server restart detection
+- Minor stability and code improvements
+
+**1.4.0** (Major Update)
+- Completely redesigned modern UI
+- New settings window
+- Faction filter (Horde / Alliance / Both)
+- Unconfirmed buffs window
+- Better synchronization and pfUI compatibility
+
+For the full changelog, see [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
-## 🧾 Changelog & Releases
+## ⚠️ Notes
 
-Full changelog is available in **CHANGELOG.md**.  
-See GitHub Releases for version history and downloads.
-
----
-
-## ⚠️ Known Incompatibility
-
-**LazyPig** modifies global string functions and chat handlers.  
-If RallyHelper fails to sync or parse messages, try disabling LazyPig.
+- Works great with **pfUI**.
+- If you experience sync issues with very old addons (e.g. LazyPig), try disabling them.
+- Timers are intentionally saved per realm.
 
 ---
 
-## ❤️ Support
+## ❤️ Support & License
 
-RallyHelper is a free community addon.  
-If you want to support development:
+RallyHelper is completely free and open source (MIT License).  
+Donations are welcome but never required:
 
-[https://ko-fi.com/weirdpuyppy94](https://ko-fi.com/weirdpuyppy94)
+[Ko-fi](https://ko-fi.com/weirdpuppy94)
 
-Support is optional and does not affect features or updates.
-
----
-
-## 📜 License
-
-MIT License — free to use, modify, and share.
