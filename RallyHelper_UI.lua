@@ -454,22 +454,20 @@ end
 
 function CreateSettingsUI()
   if settingsUI then return end
+
   local S = EnsureUISettings()
-  local DB = GetDB()gs()
   local DB = GetDB()
 
   settingsUI = CreateFrame("Frame", "RallyHelperSettingsFrame", UIParent)
   settingsUI:SetWidth(480)
   settingsUI:SetHeight(420)
   settingsUI:SetPoint("CENTER", UIParent, "CENTER")
-
   settingsUI:SetBackdrop({
     bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
     edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
     tile = true, tileSize = 32, edgeSize = 32,
     insets = { left=11, right=12, top=12, bottom=11 }
   })
-
   settingsUI:EnableMouse(true)
   settingsUI:SetMovable(true)
   settingsUI:RegisterForDrag("LeftButton")
@@ -499,7 +497,9 @@ function CreateSettingsUI()
 
   local function UpdateFilterDisplay()
     local filter = "Both"
-    if type(RH_GetFactionFilter) == "function" then filter = RH_GetFactionFilter() end
+    if type(RH_GetFactionFilter) == "function" then 
+      filter = RH_GetFactionFilter() 
+    end
     local txt = filter
     if filter == "HORDE" then txt = "|cffff3333Horde|r"
     elseif filter == "ALLIANCE" then txt = "|cff3399ffAlliance|r" end
@@ -556,9 +556,9 @@ function CreateSettingsUI()
   widthSlider:SetScript("OnValueChanged", function()
     local v = floor(widthSlider:GetValue() + 0.5)
     S.w = v
-    if ui then 
-      ui:SetWidth(v) 
-      ApplyLayout() 
+    if ui then
+      ui:SetWidth(v)
+      ApplyLayout()
     end
   end)
 
@@ -575,9 +575,9 @@ function CreateSettingsUI()
   heightSlider:SetScript("OnValueChanged", function()
     local v = floor(heightSlider:GetValue() + 0.5)
     S.h = v
-    if ui then 
-      ui:SetHeight(v) 
-      ApplyLayout() 
+    if ui then
+      ui:SetHeight(v)
+      ApplyLayout()
     end
   end)
 
@@ -615,11 +615,15 @@ function CreateSettingsUI()
   soundCB.text:SetPoint("LEFT", soundCB, "RIGHT", 4, 0)
   soundCB.text:SetText("Enable Buff Sounds")
   soundCB:SetScript("OnClick", function()
-    if DB.rhSounds then DB.rhSounds.enabled = soundCB:GetChecked() end
+    if DB.rhSounds then 
+      DB.rhSounds.enabled = soundCB:GetChecked() 
+    end
   end)
 
   local close = CreateFrame("Button", nil, settingsUI, "UIPanelButtonTemplate")
-  close:SetWidth(100) close:SetHeight(26) close:SetPoint("BOTTOM", 0, 18)
+  close:SetWidth(100) 
+  close:SetHeight(26) 
+  close:SetPoint("BOTTOM", 0, 18)
   close:SetText("Close")
   close:SetScript("OnClick", function() settingsUI:Hide() end)
 end
