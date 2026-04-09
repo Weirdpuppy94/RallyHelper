@@ -1,4 +1,4 @@
--- RallyHelper_Core v 1.4.6
+-- RallyHelper_Core v 1.4.5
 local RH_CHANNEL_NAME = "RallyHelper"
 local RH_VERIFY_WINDOW = 30
 local RH_VERIFY_REQUIRED = 1
