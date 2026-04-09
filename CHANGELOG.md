@@ -4,94 +4,99 @@ All notable changes to this project are documented here.
 
 ---
 
-## [1.3.7] - 2026-03-24 — Stability & Robustness Release
+## [1.4.5] - 2026-04-09 — Realm Support & Stability Release
 
-**Summary**  
-Stability-focused patch that hardens timer sync, prevents outlier timestamps from breaking timers, and makes sound playback and user notifications more robust and configurable.
+### Added
+- **Realm-specific timer storage**  
+  Timers are now saved per realm (`RallyHelperDB[realmName]`). Switching realms no longer carries over timers from previous realms.
 
-### Fixed
-- **Robust timer selection** — `TIMER_*` responses are now chosen by the *adjusted* timestamp closest to `now`, preventing single outliers from overwriting correct timers (stops multi‑hour jumps caused by bad client clocks).
-- **Timestamp sanity checks** — `AcceptEvent` rejects absurd timestamps (older than **30 days** or more than **1 hour** in the future).
-- **Table / length safety** — replaced fragile `#table` checks with safe `next()` checks to avoid runtime errors on non‑dense tables.
-- **Scoping & stability fixes** — cleaned up local/global scoping issues and removed duplicate/conflicting definitions that could cause runtime errors in some environments.
+- Improved `EnsureDB()` with safe realm handling and one-time migration from old account-wide data.
 
 ### Changed / Improved
-- **Hardened sound handling**
-  - Prefer `PlaySoundFile` (more reliable on Classic/private builds).
-  - Use `PlaySound`/`SOUNDKIT` only when available; all calls wrapped in `pcall`.
-  - Added debug output for sound attempts when `DB.debug = true`.
-- **Message versioning** — outgoing timer messages include an addon version tag (`vN`); incoming messages parse the version and prefer newer/compatible senders where configured.
-- **Ignore list** — new `/rallyignore add|remove|list <name>` to temporarily block noisy or buggy senders.
-- **Toast configuration** — new `DB.toastMode` with values `chat`, `ui`, `none`; added `/rallytoast` to switch modes.
-- **DB migration** — `EnsureDB()` initializes new keys safely and does not overwrite existing user preferences.
-
-### Notes
-- Recommend all channel users update to **v1.3.7** for best results.
-
----
-
-## [1.3.6] - 2026-03-22 — Stability & Vanilla Compatibility Update
+- Updated `RH_ServerRestartDetector` with more reliable detection patterns (including "server restarted", "just restarted", etc.).
+- `PrintStatus()` now shows the current realm name for easier debugging.
+- Minor code cleanups and consistency improvements.
 
 ### Fixed
-- Fixed a critical issue where `SetVerticalScroll(offset)` caused UI errors when opening the Unconfirmed window (slider events fired before ScrollFrame initialization).
-- Fixed a syntax error (`end expected near <eof>`) in `CreateUnconfirmedUI()`.
-- Fixed `RallyHelper_ToggleUI` being `nil` due to file load failure.
-- Fixed Vanilla/Turtle incompatibility in `CreateSizeUI()` (use full 5-argument `SetPoint` form).
-- Fixed potential crash when the Unconfirmed list was empty by clamping slider values.
-- Fixed negative scroll offsets in Vanilla by enforcing safe clamping.
-- Fixed race condition where the ScrollFrame could be accessed before its ScrollChild existed.
-
-### Stability improvements
-- Defensive slider logic: ignore nil offsets, clamp negative values, check ScrollFrame + ScrollChild before scrolling.
-- MouseWheel handler now safely checks for slider existence.
-- Unconfirmed UI loads reliably even with zero events.
-- Removed duplicate local variables and cleaned up function structure.
+- Cross-realm timer leakage issue.
+- Potential issues with server restart detection on different Turtle WoW realms.
 
 ---
 
-## [1.3.0] — Unconfirmed UI Rework
+## [1.4.4] - 2026-04-29 — Restart Detection & Timer Robustness
+
+### Added
+- Significantly improved server restart detection with multiple message patterns.
+- Extra tolerance for fresh clients and right after server restarts in `IsSuspicious()`.
+
+### Changed
+- Timer verification now prefers the timestamp closest to `now` from `TIMER_*` responses.
+- Sound playback hardened with better fallback logic.
+
+### Fixed
+- Rare cases where bad client clocks could cause large timer jumps.
+- Various small stability issues in timer acceptance.
+
+---
+
+## [1.4.0] - 2026-03-28 — Major UI & Features Update
 
 ### New
-- Complete Unconfirmed Events UI:
-  - ScrollFrame with slider
-  - Filter checkboxes (Alliance, Horde, ZG, WB)
-  - Dynamic event list
-  - pfUI-compatible layout
-- Safer handling for unconfirmed world buff events.
+- Completely redesigned, modern, and scalable UI with icons and faction-colored sections.
+- New **Settings Window** (`/rally settings`):
+  - Faction filter (Horde / Alliance / Both)
+  - UI width, height, and scale sliders
+  - UI lock option
+- New **Unconfirmed Buffs Window** with filters and scrollable list.
+- Improved minimap button with more actions (Alt-click, Shift-click, Middle-click).
+- Customizable buff sounds with volume control and per-event sound files.
+- Toast system (`/rallytoast chat|ui|none`).
+- Ignore list (`/rallyignore add|remove|list <name>`).
 
-### Fixed
-- Events now sort correctly by timestamp.
-- Enforced a maximum of 20 entries to prevent overflow.
-- Improved layout consistency and text alignment.
-
----
-
-## [1.2.0] — Sync & RHGlobal Stabilization
-
-### New
-- Introduced `RHGlobal.Unconfirmed` as persistent global storage.
-- Added support for solo players without LFT channel.
-- Added dedicated `RallyDebug` channel for clean debugging.
-
-### Fixed
-- Resolved sync issues caused by TurtleWoW system channels.
-- Improved event parsing and validation.
-- Ensured events are received even when not in LFT.
-
-### Cleanup
-- Removed outdated sync logic.
-- Unified event handling and storage.
+### Improved
+- Much cleaner and more responsive synchronization.
+- Better pfUI compatibility.
+- Hover fade effect on the main UI.
 
 ---
 
-## ⚠️ Known incompatibility: LazyPig
+## [1.3.7] - 2026-03-24 — Stability & Robustness Release
 
-Some users report LazyPig interferes with RallyHelper (timers not shared, confirmations not processed). If you experience sync issues, try disabling LazyPig.
+### Fixed
+- Robust timer selection from `TIMER_*` responses (prevents outliers from breaking correct timers).
+- Timestamp sanity checks in `AcceptEvent`.
+- Table length safety (replaced `#` with safe checks).
+- Sound handling improvements and better error protection.
+
+### Changed
+- Added ignore list and toast mode configuration.
+- Message versioning support.
+
+---
+
+## [1.3.6] - 2026-03-22 — UI Stability Update
+
+### Fixed
+- Critical `SetVerticalScroll` errors in Unconfirmed window.
+- Syntax and initialization issues in UI creation.
+- Vanilla/Turtle WoW compatibility with `SetPoint`.
+- ScrollFrame safety when list is empty.
+
+---
+
+## Older Versions
+- **1.3.0** — Unconfirmed UI rework
+- **1.2.0** — Sync stabilization and `RHGlobal` improvements
+
+---
+
+## ⚠️ Known Incompatibility
+**LazyPig** can interfere with chat handling and timer synchronization. If you experience issues, try disabling LazyPig.
 
 ---
 
 ## Contributing
-
-Please open issues or pull requests on GitHub. Include debug logs (`DB.debug = true`) when reporting sync or timer issues.
+Feel free to open issues or pull requests on GitHub.  
+When reporting sync or timer problems, enable debug mode (`/rally debug`) and include relevant logs.
 
 ---
