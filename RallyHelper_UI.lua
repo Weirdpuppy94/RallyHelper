@@ -10,21 +10,20 @@ local unconfUI
 local BUFF_ICONS = {
   ONY = "Interface\\Icons\\INV_Misc_Head_Dragon_Red",
   NEF = "Interface\\Icons\\INV_Misc_Head_Dragon_Blue",
-  WB  = "Interface\\Icons\\Spell_Nature_BloodLust",
-  ZG  = "Interface\\Icons\\Ability_Mount_JungleTiger",
+  WB = "Interface\\Icons\\Spell_Nature_BloodLust",
+  ZG = "Interface\\Icons\\Ability_Mount_JungleTiger",
   DMF = "Interface\\Icons\\INV_Misc_Ticket_Tarot_01",
 }
 
 local ONY_ICON = BUFF_ICONS.ONY
 local NEF_ICON = BUFF_ICONS.NEF
-local WB_ICON  = BUFF_ICONS.WB
-local ZG_ICON  = BUFF_ICONS.ZG
+local WB_ICON = BUFF_ICONS.WB
+local ZG_ICON = BUFF_ICONS.ZG
 local DMF_ICON = BUFF_ICONS.DMF
 
 local DEFAULT_W = 460
 local DEFAULT_H = 200
 local DEFAULT_SCALE = 1.0
-
 local floor = math.floor
 
 local function GetCharDB()
@@ -32,6 +31,10 @@ local function GetCharDB()
 end
 
 local function GetDB()
+  local realm = GetRealmName() or "UnknownRealm"
+  if type(RallyHelperDB) == "table" and RallyHelperDB[realm] then
+    return RallyHelperDB[realm]
+  end
   return RallyHelperDB or {}
 end
 
@@ -71,8 +74,8 @@ end
 local function EnsureUISettings()
   local cdb = GetCharDB()
   cdb.ui = cdb.ui or {}
-  cdb.ui.w     = tonumber(cdb.ui.w)     or DEFAULT_W
-  cdb.ui.h     = tonumber(cdb.ui.h)     or DEFAULT_H
+  cdb.ui.w = tonumber(cdb.ui.w) or DEFAULT_W
+  cdb.ui.h = tonumber(cdb.ui.h) or DEFAULT_H
   cdb.ui.scale = tonumber(cdb.ui.scale) or DEFAULT_SCALE
   return cdb.ui
 end
@@ -91,8 +94,8 @@ function ApplyLayout()
   local H = ui:GetHeight()
   local PAD = 20
   local filter = RH_GetFactionFilter()
-
   local COL_W = (W - PAD*3) / 2
+
   if ui.onyIcon then ui.onyIcon:Hide() end
   if ui.nefIcon then ui.nefIcon:Hide() end
 
@@ -112,13 +115,7 @@ function ApplyLayout()
   else
     ui.onyTitle:SetPoint("TOPLEFT", PAD, -36)
     ui.onyTitle:SetWidth(W - PAD*2)
-
-    if filter == "HORDE" then
-      ui.onyTitle:SetText("Horde")
-    else
-      ui.onyTitle:SetText("Alliance")
-    end
-
+    ui.onyTitle:SetText(filter == "HORDE" and "Horde" or "Alliance")
     ui.onyTitle:Show()
     ui.nefTitle:Hide()
   end
@@ -131,7 +128,7 @@ function ApplyLayout()
     end
   end
 
-  local yLeft  = -68
+  local yLeft = -68
   local yRight = -68
 
   local function PlaceLeft(row, width)
@@ -168,12 +165,11 @@ function ApplyLayout()
   if filter == "BOTH" then
     if ui.onyOG and ShouldShowEvent("ONY_H") then PlaceLeft(ui.onyOG, COL_W) end
     if ui.nefOG and ShouldShowEvent("NEF_H") then PlaceLeft(ui.nefOG, COL_W) end
-    if ui.wb   and ShouldShowEvent("WB")    then PlaceLeft(ui.wb,   COL_W) end
+    if ui.wb and ShouldShowEvent("WB") then PlaceLeft(ui.wb, COL_W) end
     if ui.onySW and ShouldShowEvent("ONY_A") then PlaceRight(ui.onySW, COL_W) end
     if ui.nefSW and ShouldShowEvent("NEF_A") then PlaceRight(ui.nefSW, COL_W) end
 
     local y = math.min(yLeft, yRight) - 20
-
     if ui.zg and ShouldShowEvent("ZG") then
       ui.zg:ClearAllPoints()
       ui.zg:SetPoint("TOPLEFT", PAD, y)
@@ -182,7 +178,6 @@ function ApplyLayout()
       PlaceIcon(ui.zg)
       y = y - 24
     end
-
     if ui.dmf and ShouldShowEvent("DMF") then
       ui.dmf:ClearAllPoints()
       ui.dmf:SetPoint("TOPLEFT", PAD, y)
@@ -196,16 +191,17 @@ function ApplyLayout()
     if needed > H then ui:SetHeight(needed) end
     return
   end
+
   if filter == "HORDE" then
     if ui.onyOG and ShouldShowEvent("ONY_H") then PlaceSingle(ui.onyOG) end
     if ui.nefOG and ShouldShowEvent("NEF_H") then PlaceSingle(ui.nefOG) end
-    if ui.wb   and ShouldShowEvent("WB")    then PlaceSingle(ui.wb)   end
+    if ui.wb and ShouldShowEvent("WB") then PlaceSingle(ui.wb) end
   else
     if ui.onySW and ShouldShowEvent("ONY_A") then PlaceSingle(ui.onySW) end
     if ui.nefSW and ShouldShowEvent("NEF_A") then PlaceSingle(ui.nefSW) end
   end
 
-  if ui.zg  and ShouldShowEvent("ZG")  then PlaceSingle(ui.zg)  end
+  if ui.zg and ShouldShowEvent("ZG") then PlaceSingle(ui.zg) end
   if ui.dmf and ShouldShowEvent("DMF") then PlaceSingle(ui.dmf) end
 
   local needed = math.abs(yLeft) + 40
@@ -214,8 +210,15 @@ end
 
 function UpdateTexts()
   if not ui or not ui.initialized then return end
-  local DB = GetDB()
+
+  local db = GetDB()
+  if not db then return end
+
   local t = time()
+
+  local ONY_CD = 2 * 60 * 60
+  local NEF_CD = 2 * 60 * 60
+  local WB_CD  = 3 * 60 * 60
 
   local function FormatUnconfirmed(ev, label)
     local u = RHGlobal.Unconfirmed[ev]
@@ -226,54 +229,56 @@ function UpdateTexts()
   if ui.onySW then
     ui.onySW:SetText(
       FormatUnconfirmed("ONY_A", "Onyxia") or
-      ("Onyxia: " .. Colorize(FormatTime(DB.lastOnyA and DB.lastOnyA + 7200 - t)))
+      ("Onyxia: " .. Colorize(FormatTime(db.lastOnyA and (db.lastOnyA + ONY_CD - t) or 0)))
     )
   end
 
   if ui.onyOG then
     ui.onyOG:SetText(
       FormatUnconfirmed("ONY_H", "Onyxia") or
-      ("Onyxia: " .. Colorize(FormatTime(DB.lastOnyH and DB.lastOnyH + 7200 - t)))
+      ("Onyxia: " .. Colorize(FormatTime(db.lastOnyH and (db.lastOnyH + ONY_CD - t) or 0)))
     )
   end
 
   if ui.nefSW then
     ui.nefSW:SetText(
       FormatUnconfirmed("NEF_A", "Nefarian") or
-      ("Nefarian: " .. Colorize(FormatTime(DB.lastNefA and DB.lastNefA + 7200 - t)))
+      ("Nefarian: " .. Colorize(FormatTime(db.lastNefA and (db.lastNefA + NEF_CD - t) or 0)))
     )
   end
 
   if ui.nefOG then
     ui.nefOG:SetText(
       FormatUnconfirmed("NEF_H", "Nefarian") or
-      ("Nefarian: " .. Colorize(FormatTime(DB.lastNefH and DB.lastNefH + 7200 - t)))
+      ("Nefarian: " .. Colorize(FormatTime(db.lastNefH and (db.lastNefH + NEF_CD - t) or 0)))
     )
   end
 
   if ui.zg then
-    ui.zg:SetText("ZG last drop: " .. (DB.lastZG and FormatAgo(DB.lastZG) or "unknown"))
+    ui.zg:SetText("ZG last drop: " .. (db.lastZG and FormatAgo(db.lastZG) or "unknown"))
   end
 
   if ui.dmf then
-    ui.dmf:SetText("DMF: " .. (DB.lastDMFTime and (FormatAgo(DB.lastDMFTime) .. " in " .. (DB.lastDMFZone or "unknown")) or "unknown"))
+    ui.dmf:SetText("DMF: " .. (db.lastDMFTime and (FormatAgo(db.lastDMFTime) .. " in " .. (db.lastDMFZone or "unknown")) or "unknown"))
   end
 
   if ui.wb then
     ui.wb:SetText(
       FormatUnconfirmed("WB", "Rend") or
-      ("Rend: " .. Colorize(FormatTime(DB.lastWB and DB.lastWB + 10800 - t)))
+      ("Rend: " .. Colorize(FormatTime(db.lastWB and (db.lastWB + WB_CD - t) or 0)))
     )
   end
 end
 
 _G.RallyHelper_UpdateUI = function()
-  ApplyLayout()
-  UpdateTexts()
+  if ui then
+    ApplyLayout()
+    UpdateTexts()
+  end
 end
+
 local function CreateUI()
   local S = EnsureUISettings()
-
   ui = ui or CreateFrame("Frame", "RH_UIFrame", UIParent)
 
   ui:SetWidth(tonumber(S.w) or DEFAULT_W)
@@ -320,19 +325,16 @@ local function CreateUI()
     end
 
     ui.onyTitle = CreateFS(18, 1, 1, 1)
-    ui.onyTitle:SetText("Onyxia")
-
     ui.nefTitle = CreateFS(18, 1, 1, 1)
-    ui.nefTitle:SetText("Nefarian")
 
     ui.onySW = CreateFS(15, 0.4, 0.8, 1)
     ui.onyOG = CreateFS(15, 1, 0.4, 0.4)
     ui.nefSW = CreateFS(15, 0.4, 0.8, 1)
     ui.nefOG = CreateFS(15, 1, 0.4, 0.4)
+    ui.zg     = CreateFS(14.5, 0.2, 1, 0.2)
+    ui.dmf    = CreateFS(14.5, 0.9, 0.6, 1)
+    ui.wb     = CreateFS(14.5, 1, 0.8, 0.2)
 
-    ui.zg  = CreateFS(14.5, 0.2, 1, 0.2)
-    ui.dmf = CreateFS(14.5, 0.9, 0.6, 1)
-    ui.wb  = CreateFS(14.5, 1, 0.8, 0.2)
     local function CreateBuffIcon(tex)
       local t = ui:CreateTexture(nil, "ARTWORK")
       t:SetTexture(tex)
@@ -378,9 +380,9 @@ local function CreateUI()
   ApplyLayout()
   UpdateTexts()
 end
+
 function CreateFirstTimeSetup()
   if firstTimeUI then return end
-
   firstTimeUI = CreateFrame("Frame", "RallyHelperFirstTimeFrame", UIParent)
   firstTimeUI:SetWidth(420)
   firstTimeUI:SetHeight(280)
@@ -452,8 +454,8 @@ end
 
 function CreateSettingsUI()
   if settingsUI then return end
-
   local S = EnsureUISettings()
+  local DB = GetDB()gs()
   local DB = GetDB()
 
   settingsUI = CreateFrame("Frame", "RallyHelperSettingsFrame", UIParent)
