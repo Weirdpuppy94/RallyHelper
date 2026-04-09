@@ -1,4 +1,4 @@
--- RallyHelper_Core v 1.4.4
+-- RallyHelper_Core v 1.4.5
 
 local RH_CHANNEL_NAME = "RallyHelper"
 local RH_VERIFY_WINDOW = 30
@@ -40,8 +40,11 @@ local RH_Unconfirmed = RHGlobal.Unconfirmed
 local RH_ClockOffset = RH_ClockOffset or {}
 
 local function EnsureDB()
-  DB = RallyHelperDB or {}
-  RallyHelperDB = DB
+  local realm = GetRealmName() or "UnknownRealm"
+  RallyHelperDB = RallyHelperDB or {}
+
+  DB = RallyHelperDB[realm] or {}
+  RallyHelperDB[realm] = DB
 
   DB.version = DB.version or 0
   if DB.version < DB_VERSION then
@@ -50,6 +53,17 @@ local function EnsureDB()
     DB.locked  = false
     DB.toast   = true
     DB.version = DB_VERSION
+  end
+
+  if not DB.lastOnyA and RallyHelperDB.lastOnyA then
+    DB.lastOnyA = RallyHelperDB.lastOnyA
+    DB.lastOnyH = RallyHelperDB.lastOnyH
+    DB.lastNefA = RallyHelperDB.lastNefA
+    DB.lastNefH = RallyHelperDB.lastNefH
+    DB.lastZG   = RallyHelperDB.lastZG
+    DB.lastWB   = RallyHelperDB.lastWB
+    DB.lastDMFTime = RallyHelperDB.lastDMFTime
+    DB.lastDMFZone = RallyHelperDB.lastDMFZone
   end
 
   DB.rhSounds = DB.rhSounds or {}
@@ -832,6 +846,8 @@ end
 
 function PrintStatus()
   local now = time()
+  local realm = GetRealmName() or "Unknown"
+  DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RallyHelper]|r Realm: " .. realm)
   DEFAULT_CHAT_FRAME:AddMessage("Ony SW: " .. (DB.lastOnyA and FormatTimeSimple(DB.lastOnyA + ONY_CD - now) or "ready"))
   DEFAULT_CHAT_FRAME:AddMessage("Ony OG: " .. (DB.lastOnyH and FormatTimeSimple(DB.lastOnyH + ONY_CD - now) or "ready"))
   DEFAULT_CHAT_FRAME:AddMessage("Nef SW: " .. (DB.lastNefA and FormatTimeSimple(DB.lastNefA + NEF_CD - now) or "ready"))
@@ -1070,21 +1086,40 @@ end
 
 local function RH_ServerRestartDetector(msg)
   if type(msg) ~= "string" then return end
+
   local lower = strlower(msg)
 
-  if strfind(lower, "server uptime") or strfind(lower, "uptime:") then
-    if strfind(lower, "0 days") or strfind(lower, "0d") or strfind(lower, "00:00") then
-      DB.lastOnyA = nil
-      DB.lastOnyH = nil
-      DB.lastNefA = nil
-      DB.lastNefH = nil
-      DB.lastZG = nil
-      DB.lastWB = nil
-      DB.lastDMFTime = nil
-      DB.lastDMFZone = nil
-      if DEFAULT_CHAT_FRAME then
-        DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RallyHelper]|r Server restart detected. All timers reset.")
-      end
+  local isRestartMessage = 
+    strfind(lower, "server uptime") or 
+    strfind(lower, "uptime:") or 
+    strfind(lower, "server restarted") or 
+    strfind(lower, "restart") or 
+    strfind(lower, "restarted")
+
+  if not isRestartMessage then return end
+
+  if strfind(lower, "0 days") or 
+     strfind(lower, "0d") or 
+     strfind(lower, "00:00") or 
+     strfind(lower, "uptime: 0") or
+     strfind(lower, "just restarted") or
+     strfind(lower, "server has been restarted") then
+
+    DB.lastOnyA = nil
+    DB.lastOnyH = nil
+    DB.lastNefA = nil
+    DB.lastNefH = nil
+    DB.lastZG = nil
+    DB.lastWB = nil
+    DB.lastDMFTime = nil
+    DB.lastDMFZone = nil
+
+    if DEFAULT_CHAT_FRAME then
+      DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[RallyHelper]|r Server restart detected. All timers have been reset.")
+    end
+
+    if DB.rhSounds and DB.rhSounds.enabled then
+      PlayBuffSoundFor("WB")
     end
   end
 end
