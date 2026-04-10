@@ -1,8 +1,8 @@
--- RallyHelper_Core v 1.4.5
+-- RallyHelper_Core v 1.4.6
 local RH_CHANNEL_NAME = "RallyHelper"
 local RH_VERIFY_WINDOW = 30
 local RH_VERIFY_REQUIRED = 1
-local RH_VERIFY_REQUIRED_REQUEST = 5
+local RH_VERIFY_REQUIRED_REQUEST = 3  
 local RH_SEND_THROTTLE = 20
 
 local ONY_CD = 2 * 60 * 60
@@ -267,22 +267,35 @@ local function Prune(list)
 end
 
 local function IsSuspicious(ev, ts)
-  if not ts or ts <= 0 then return true end
+  if not ts or ts <= 0 then
+    return true
+  end
 
   local now = time()
-
-  if ts > now - (6 * 3600) then
+  if ts > now - (15 * 60) then
     return false
   end
 
+  local extraTolerance = 7200
   if ev == "ONY_A" or ev == "ONY_H" or ev == "NEF_A" or ev == "NEF_H" then
-    if ts < now - (ONY_CD + 7200) then return true end
+    if ts < now - (ONY_CD + extraTolerance) then return true end
   elseif ev == "WB" then
-    if ts < now - (WB_CD + 7200) then return true end
+    if ts < now - (WB_CD + extraTolerance) then return true end
   elseif ev == "ZG" then
     if ts < now - 48 * 3600 then return true end
   elseif ev == "DMF" then
     if ts < now - 14 * 24 * 3600 then return true end
+  end
+
+  local last = nil
+  if ev == "ONY_A" then last = DB.lastOnyA end
+  if ev == "ONY_H" then last = DB.lastOnyH end
+  if ev == "NEF_A" then last = DB.lastNefA end
+  if ev == "NEF_H" then last = DB.lastNefH end
+  if ev == "WB"    then last = DB.lastWB end
+
+  if last and ts < last then
+    return true 
   end
 
   return false
