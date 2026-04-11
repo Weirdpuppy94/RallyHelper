@@ -1,4 +1,4 @@
--- RallyHelper_Core v 1.4.6
+-- RallyHelper_Core v 1.4.6 Hotfix
 local RH_CHANNEL_NAME = "RallyHelper"
 local RH_VERIFY_WINDOW = 30
 local RH_VERIFY_REQUIRED = 1
@@ -780,7 +780,7 @@ local function HandleYell(npc, msg)
   end
 
   if npc == "Field Marshal Afrasiabi" then
-    if has("nefarian") or has("blackrock") then
+    if has("nefarian") or has("blackrock") or has("dread") or has("might of the alliance") or has("blackwing") then
       RH_LocalDetected["NEF_A"] = time() + LOCAL_DETECT_WINDOW
       AcceptEvent("NEF_A", time())
       SendEvent("NEF_A")
