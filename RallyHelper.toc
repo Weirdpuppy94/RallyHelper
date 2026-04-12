@@ -2,7 +2,7 @@
 ## Title: RallyHelper
 ## Notes: World Buff Timer Tracker for Turtle WoW (Onyxia, Nefarian, Rend, ZG, DMF) - Realm-specific timers
 ## Author: Weirdpuppy
-## Version: 1.4.6
+## Version: 1.4.7
 ## SavedVariables: RallyHelperDB
 ## SavedVariablesPerCharacter: RallyHelperCharDB
 
