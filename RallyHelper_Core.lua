@@ -1,4 +1,4 @@
--- RallyHelper_Core v 1.4.6 Hotfix
+-- RallyHelper_Core v 1.4.7
 local RH_CHANNEL_NAME = "RallyHelper"
 local RH_VERIFY_WINDOW = 30
 local RH_VERIFY_REQUIRED = 1
@@ -764,11 +764,14 @@ local function HandleChannel(msg, channel)
   AddUnconfirmedEvent(ev, ts, sender, zone)
 end
 
+
 local function HandleYell(npc, msg)
   if type(npc) ~= "string" or type(msg) ~= "string" then return end
 
   local lowerMsg = string.lower(msg)
-  local function has(s) return string.find(lowerMsg, s, 1, true) ~= nil end
+  local function has(s) 
+    return string.find(lowerMsg, s, 1, true) ~= nil 
+  end
 
   if npc == "Major Mattingly" then
     if has("onyxia") or has("head") or has("dragon slayer") or has("dread lady") then
@@ -780,7 +783,8 @@ local function HandleYell(npc, msg)
   end
 
   if npc == "Field Marshal Afrasiabi" then
-    if has("nefarian") or has("blackrock") or has("dread") or has("might of the alliance") or has("blackwing") then
+    if has("nefarian") or has("blackrock") or has("blackwing") or has("dread") 
+       or has("might of the alliance") or has("lord of blackrock") or has("nefarion") then
       RH_LocalDetected["NEF_A"] = time() + LOCAL_DETECT_WINDOW
       AcceptEvent("NEF_A", time())
       SendEvent("NEF_A")
@@ -789,7 +793,7 @@ local function HandleYell(npc, msg)
   end
 
   if npc == "High Overlord Saurfang" or npc == "Overlord Runthak" then
-    if has("onyxia") or has("brood mother") then
+    if has("onyxia") or has("brood mother") or has("dragon slayer") then
       RH_LocalDetected["ONY_H"] = time() + LOCAL_DETECT_WINDOW
       AcceptEvent("ONY_H", time())
       SendEvent("ONY_H")
@@ -798,7 +802,7 @@ local function HandleYell(npc, msg)
   end
 
   if npc == "High Overlord Saurfang" or npc == "Overlord Runthak" then
-    if has("nefarian") or has("blackrock") then
+    if has("nefarian") or has("blackrock") or has("blackwing") or has("lord of blackrock") then
       RH_LocalDetected["NEF_H"] = time() + LOCAL_DETECT_WINDOW
       AcceptEvent("NEF_H", time())
       SendEvent("NEF_H")
